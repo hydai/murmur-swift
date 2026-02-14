@@ -34,16 +34,28 @@ public actor AppleSttProvider: SttProvider {
     public func startSession() async throws {
         // Validate locale before creating transcriber for actionable error messages
         let supported = await SpeechTranscriber.supportedLocales
-        if !supported.contains(where: { $0.identifier == locale.identifier }) {
-            let langList = supported.map(\.identifier).sorted().joined(separator: ", ")
-            throw MurmurError.stt(
-                "Locale '\(locale.identifier)' is not supported by Apple Speech. "
-                + "Supported locales: \(langList). "
-                + "Set 'apple_stt_locale' in config to a supported locale, or change your system language."
-            )
+        let effectiveLocale: Locale
+        if supported.contains(where: { $0.identifier == locale.identifier }) {
+            effectiveLocale = locale
+        } else {
+            // Locale not directly supported — fall back to same language, different region
+            // e.g. en-TW → en-US, zh-SG → zh-TW
+            let langCode = locale.language.languageCode?.identifier ?? "en"
+            if let fallback = supported.first(where: {
+                $0.language.languageCode?.identifier == langCode
+            }) {
+                effectiveLocale = fallback
+            } else {
+                let langList = supported.map(\.identifier).sorted().joined(separator: ", ")
+                throw MurmurError.stt(
+                    "Locale '\(locale.identifier)' is not supported by Apple Speech. "
+                    + "Supported locales: \(langList). "
+                    + "Set 'apple_stt_locale' in config to a supported locale, or change your system language."
+                )
+            }
         }
 
-        let stt = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+        let stt = SpeechTranscriber(locale: effectiveLocale, preset: .progressiveTranscription)
         transcriber = stt
 
         // Create audio input stream for feeding buffers
