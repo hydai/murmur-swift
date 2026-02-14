@@ -1,3 +1,9 @@
+## 0.1.5 (2026-02-14)
+
+### Fixes
+
+- improve STT unsupported locale error with actionable details
+
 ## 0.1.4 (2026-02-14)
 
 ### Fixes
