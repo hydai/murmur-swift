@@ -8,6 +8,8 @@ import Speech
 /// provides streaming partial + committed results.
 public actor AppleSttProvider: SttProvider {
     private let locale: Locale
+    /// The locale actually used after fallback resolution (for error reporting).
+    private var effectiveLocale: Locale?
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var resultTask: Task<Void, Never>?
@@ -55,8 +57,35 @@ public actor AppleSttProvider: SttProvider {
             }
         }
 
+        self.effectiveLocale = effectiveLocale
+
         let stt = SpeechTranscriber(locale: effectiveLocale, preset: .progressiveTranscription)
         transcriber = stt
+
+        // Ensure the on-device speech model is downloaded
+        let installed = await SpeechTranscriber.installedLocales
+        let isInstalled = installed.contains(where: {
+            $0.language.languageCode?.identifier == effectiveLocale.language.languageCode?.identifier
+        })
+
+        if !isInstalled {
+            emit(.error(
+                message: "Downloading speech model for \(effectiveLocale.identifier), please wait..."
+            ))
+            do {
+                if let downloader = try await AssetInventory.assetInstallationRequest(
+                    supporting: [stt]
+                ) {
+                    try await downloader.downloadAndInstall()
+                }
+            } catch {
+                throw MurmurError.stt(
+                    "Failed to download speech model for \(effectiveLocale.identifier): "
+                    + "\(error.localizedDescription). "
+                    + "Try downloading the language in System Settings → General → Language & Region."
+                )
+            }
+        }
 
         // Create audio input stream for feeding buffers
         var audioCont: AsyncStream<AnalyzerInput>.Continuation!
@@ -92,7 +121,7 @@ public actor AppleSttProvider: SttProvider {
                 }
             } catch {
                 guard let self else { return }
-                let localeId = self.locale.identifier
+                let localeId = await self.effectiveLocale?.identifier ?? self.locale.identifier
                 await self.emit(.error(
                     message: "\(error.localizedDescription) (locale: \(localeId))"
                 ))
