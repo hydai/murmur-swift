@@ -13,7 +13,7 @@ jobs:
     name: Prepare Release PR
     if: >-
       github.event_name == 'push'
-      && !contains(github.event.head_commit.message, 'chore: release')
+      && !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -43,7 +43,7 @@ jobs:
     name: Build & Release
     if: >-
       github.event_name == 'push'
-      && contains(github.event.head_commit.message, 'chore: release')
+      && startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: macos-26
     permissions:
       contents: write
@@ -70,9 +70,8 @@ jobs:
           APP_PATH=$(find build -name "Murmur.app" -type d | head -1)
           ditto -c -k --keepParent "$APP_PATH" artifacts/Murmur-macOS.zip
 
-      - uses: knope-dev/action@v2.1.2
-        with:
-          version: 0.22.2
+      - name: Install knope
+        run: brew install knope-dev/tap/knope
 
       - name: Create GitHub Release
         run: knope release --verbose
