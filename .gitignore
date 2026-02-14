@@ -1,6 +1,8 @@
 # Xcode
 xcuserdata/
 *.xcworkspace
+!Murmur.xcworkspace
+Murmur.xcworkspace/xcuserdata/
 DerivedData/
 build/
 
