@@ -1,3 +1,9 @@
+## 0.1.6 (2026-02-14)
+
+### Fixes
+
+- fall back to same-language locale when system locale unsupported by Apple Speech
+
 ## 0.1.5 (2026-02-14)
 
 ### Fixes
