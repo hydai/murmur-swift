@@ -1,3 +1,9 @@
+## 0.1.4 (2026-02-14)
+
+### Fixes
+
+- strip script subtags from auto-detected locale for SpeechTranscriber
+
 ## 0.1.3 (2026-02-14)
 
 ### Features
