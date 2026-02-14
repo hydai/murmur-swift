@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: MurmurKit Tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run tests
+        run: swift test
+        working-directory: MurmurKit
+
+  build:
+    name: Xcode Build
+    runs-on: macos-26
+    needs: test
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Murmur.app
+        run: |
+          xcodebuild \
+            -project Murmur.xcodeproj \
+            -scheme Murmur \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
