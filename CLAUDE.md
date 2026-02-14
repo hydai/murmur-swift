@@ -13,8 +13,11 @@ cd MurmurKit && swift build
 # Run all tests (18 tests, 5 suites)
 cd MurmurKit && swift test
 
-# Build full app via Xcode
-xcodebuild -project Murmur.xcodeproj -scheme Murmur -configuration Release build
+# Build full app via xcodebuild
+xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -configuration Release build
+
+# Run tests via xcodebuild
+xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=macOS' test
 ```
 
 ## Project Structure
