@@ -20,8 +20,11 @@ public actor AppleSttProvider: SttProvider {
     public nonisolated let events: AsyncStream<TranscriptionEvent>
 
     /// Create a provider for the given locale (pass nil for system default).
+    ///
+    /// When nil, resolves the current locale by stripping script subtags
+    /// (e.g. zh-Hant-TW → zh-TW) that SpeechTranscriber may not support.
     public init(locale: Locale? = nil) {
-        self.locale = locale ?? Locale.current
+        self.locale = locale ?? Self.resolveSystemLocale()
 
         var cont: AsyncStream<TranscriptionEvent>.Continuation!
         self.events = AsyncStream { cont = $0 }
@@ -29,33 +32,29 @@ public actor AppleSttProvider: SttProvider {
     }
 
     public func startSession() async throws {
-        transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
-        guard let transcriber else {
-            throw MurmurError.stt("Failed to create SpeechTranscriber")
-        }
+        let stt = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+        transcriber = stt
 
         // Create audio input stream for feeding buffers
         var audioCont: AsyncStream<AnalyzerInput>.Continuation!
         let audioStream = AsyncStream<AnalyzerInput> { audioCont = $0 }
         audioContinuation = audioCont
 
-        analyzer = SpeechAnalyzer(modules: [transcriber])
-        guard let analyzer else {
-            throw MurmurError.stt("Failed to create SpeechAnalyzer")
-        }
+        let speechAnalyzer = SpeechAnalyzer(modules: [stt])
+        analyzer = speechAnalyzer
 
         cumulativeSampleCount = 0
 
         // Start analyzer processing in a separate task
         let analyzeTask = Task {
-            try await analyzer.start(inputSequence: audioStream)
+            try await speechAnalyzer.start(inputSequence: audioStream)
         }
 
         // Iterate transcription results
         resultTask = Task { [weak self] in
             _ = analyzeTask
             do {
-                for try await result in transcriber.results {
+                for try await result in stt.results {
                     guard let self else { break }
                     let text = String(result.text.characters)
                     guard !text.isEmpty else { continue }
@@ -121,5 +120,20 @@ public actor AppleSttProvider: SttProvider {
 
     private func emit(_ event: TranscriptionEvent) {
         eventContinuation.yield(event)
+    }
+
+    /// Build a minimal locale from the system locale.
+    ///
+    /// `Locale.current` can include script subtags (e.g. `zh-Hant-TW`) and
+    /// extra user preferences that `SpeechTranscriber` does not recognise.
+    /// This strips it down to language + region (e.g. `zh-TW`).
+    private static func resolveSystemLocale() -> Locale {
+        let current = Locale.current
+        let langCode = current.language.languageCode?.identifier ?? "en"
+
+        if let region = current.language.region?.identifier {
+            return Locale(identifier: "\(langCode)-\(region)")
+        }
+        return Locale(identifier: langCode)
     }
 }
