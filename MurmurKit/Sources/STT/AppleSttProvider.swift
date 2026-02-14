@@ -32,6 +32,17 @@ public actor AppleSttProvider: SttProvider {
     }
 
     public func startSession() async throws {
+        // Validate locale before creating transcriber for actionable error messages
+        let supported = await SpeechTranscriber.supportedLocales
+        if !supported.contains(where: { $0.identifier == locale.identifier }) {
+            let langList = supported.map(\.identifier).sorted().joined(separator: ", ")
+            throw MurmurError.stt(
+                "Locale '\(locale.identifier)' is not supported by Apple Speech. "
+                + "Supported locales: \(langList). "
+                + "Set 'apple_stt_locale' in config to a supported locale, or change your system language."
+            )
+        }
+
         let stt = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
         transcriber = stt
 
@@ -69,7 +80,10 @@ public actor AppleSttProvider: SttProvider {
                 }
             } catch {
                 guard let self else { return }
-                await self.emit(.error(message: error.localizedDescription))
+                let localeId = self.locale.identifier
+                await self.emit(.error(
+                    message: "\(error.localizedDescription) (locale: \(localeId))"
+                ))
             }
         }
     }
