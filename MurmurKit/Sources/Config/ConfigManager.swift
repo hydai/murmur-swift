@@ -54,4 +54,10 @@ public actor ConfigManager {
         transform(&config)
         try save()
     }
+
+    /// Replace config entirely and save.
+    public func setConfig(_ newConfig: AppConfig) throws {
+        config = newConfig
+        try save()
+    }
 }

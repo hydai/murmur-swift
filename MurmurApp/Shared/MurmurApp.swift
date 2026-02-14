@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeyManager = GlobalHotkeyManager()
     private let overlayWindow = OverlayWindow()
     private let soundManager = SoundManager.shared
+    private let historyViewModel = HistoryViewModel()
+    private var settingsWindow: NSWindow?
+    private var historyWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set as accessory app (no dock icon, tray only)
@@ -41,12 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await self?.toggleRecording()
         }
 
-        trayManager.onOpenSettings = {
-            // Phase 4: Settings window
+        trayManager.onOpenSettings = { [weak self] in
+            self?.openSettingsWindow()
         }
 
-        trayManager.onOpenHistory = {
-            // Phase 4: History window
+        trayManager.onOpenHistory = { [weak self] in
+            self?.openHistoryWindow()
         }
 
         trayManager.onQuit = {
@@ -89,6 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     switch state {
                     case .done:
                         soundManager.playDoneSound()
+                        // Save to history
+                        self.saveToHistory()
                         // Hide overlay after a brief delay
                         Task {
                             try? await Task.sleep(for: .seconds(2))
@@ -104,6 +109,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
+    }
+
+    private func saveToHistory() {
+        let result = viewModel.finalResult
+        let raw = viewModel.committedSegments.joined(separator: " ")
+        guard !result.isEmpty else { return }
+
+        let entry = HistoryEntry(
+            rawText: raw,
+            processedText: result,
+            command: viewModel.detectedCommand,
+            processingTimeMs: viewModel.processingTimeMs
+        )
+        Task { await historyViewModel.addEntry(entry) }
+    }
+
+    private func openSettingsWindow() {
+        if let window = settingsWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let settingsView = SettingsPanel(
+            viewModel: SettingsViewModel(configManager: viewModel.configManager)
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Murmur Settings"
+        window.contentView = NSHostingView(rootView: settingsView)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = window
+    }
+
+    private func openHistoryWindow() {
+        if let window = historyWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let historyView = HistoryView(viewModel: historyViewModel)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Murmur History"
+        window.contentView = NSHostingView(rootView: historyView)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        historyWindow = window
     }
 }
 #endif
