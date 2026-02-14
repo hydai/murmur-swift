@@ -16,3 +16,6 @@ Package.resolved
 
 # App specific
 *.app
+
+# CI build artifacts
+artifacts/
