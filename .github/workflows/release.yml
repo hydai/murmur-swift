@@ -13,7 +13,7 @@ jobs:
     name: Prepare Release PR
     if: >-
       github.event_name == 'push'
-      && !startsWith(github.event.head_commit.message, 'chore: release')
+      && !startsWith(github.event.head_commit.message, 'chore: prepare release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -43,7 +43,7 @@ jobs:
     name: Build & Release
     if: >-
       github.event_name == 'push'
-      && startsWith(github.event.head_commit.message, 'chore: release')
+      && startsWith(github.event.head_commit.message, 'chore: prepare release')
     runs-on: macos-26
     permissions:
       contents: write
