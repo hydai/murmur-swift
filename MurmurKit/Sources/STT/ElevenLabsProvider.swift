@@ -11,6 +11,8 @@ public actor ElevenLabsProvider: SttProvider {
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
+    private var reconnectAttempts = 0
+    private let maxReconnectAttempts = 3
 
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
@@ -40,6 +42,8 @@ public actor ElevenLabsProvider: SttProvider {
         ws.resume()
         self.webSocketTask = ws
 
+        reconnectAttempts = 0
+
         // Start receiving messages
         receiveTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -49,10 +53,31 @@ public actor ElevenLabsProvider: SttProvider {
                     await self.handleMessage(message)
                 } catch {
                     if !Task.isCancelled {
-                        self.emit(.error(message: "WebSocket error: \(error.localizedDescription)"))
+                        await self.handleDisconnect(error: error)
                     }
                     break
                 }
+            }
+        }
+    }
+
+    private func handleDisconnect(error: Error) {
+        guard reconnectAttempts < maxReconnectAttempts else {
+            emit(.error(message: "WebSocket disconnected after \(maxReconnectAttempts) retries: \(error.localizedDescription)"))
+            return
+        }
+
+        reconnectAttempts += 1
+        let delay = UInt64(pow(2.0, Double(reconnectAttempts))) // Exponential backoff: 2, 4, 8 seconds
+        emit(.error(message: "WebSocket disconnected, reconnecting in \(delay)s (attempt \(reconnectAttempts)/\(maxReconnectAttempts))..."))
+
+        Task {
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            do {
+                try await startSession()
+            } catch {
+                emit(.error(message: "Reconnection failed: \(error.localizedDescription)"))
             }
         }
     }

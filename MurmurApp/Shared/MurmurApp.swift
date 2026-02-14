@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlayWindow = OverlayWindow()
     private let soundManager = SoundManager.shared
     private let historyViewModel = HistoryViewModel()
+    private let permissionsManager = PermissionsManager()
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
 
@@ -35,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupTray()
         setupHotkey()
         observePipelineState()
+        checkPermissions()
     }
 
     private func setupTray() {
@@ -123,6 +125,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             processingTimeMs: viewModel.processingTimeMs
         )
         Task { await historyViewModel.addEntry(entry) }
+    }
+
+    private func checkPermissions() {
+        Task {
+            let issues = await permissionsManager.checkPermissions()
+            if !issues.isEmpty {
+                permissionsManager.showPermissionAlert(issues: issues)
+            }
+        }
     }
 
     private func openSettingsWindow() {
