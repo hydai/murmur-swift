@@ -18,11 +18,14 @@ jobs:
       github.event_name == 'push'
       && !contains(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Git
         run: |
@@ -36,7 +39,7 @@ jobs:
       - name: Prepare release
         run: knope prepare-release --verbose
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
   build-and-release:
