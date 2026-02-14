@@ -1,0 +1,51 @@
+[package]
+versioned_files = [
+  { path = "Murmur.xcodeproj/project.pbxproj", regex = 'MARKETING_VERSION = (?<version>\d+\.\d+\.\d+);' },
+]
+changelog = "CHANGELOG.md"
+
+[[package.assets]]
+path = "artifacts/Murmur-macOS.zip"
+name = "Murmur-macOS.zip"
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch -c release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+
+[[workflows.steps]]
+type = "Command"
+command = "git add ."
+
+[[workflows.steps]]
+type = "Command"
+command = "git commit -m \"chore: prepare release $version\""
+
+[[workflows.steps]]
+type = "Command"
+command = "git push --force --set-upstream origin release"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "master"
+
+[workflows.steps.title]
+template = "chore: release v$version"
+
+[workflows.steps.body]
+template = "This PR was created by Knope. Merging it will create a new release.\n\n$changelog"
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+
+[github]
+owner = "hydai"
+repo = "murmur-swift"
