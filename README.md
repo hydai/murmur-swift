@@ -10,7 +10,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 
 - Real-time speech-to-text with multiple providers (Apple, ElevenLabs, OpenAI, Groq)
 - Apple STT: on-device speech recognition via macOS — no API key needed
-- LLM post-processing via local CLI tools (gemini-cli, copilot-cli) or Apple Foundation Models (on-device)
+- LLM post-processing with multiple providers: Apple Foundation Models (on-device), OpenAI GPT, Claude, Gemini API, Custom OpenAI-compatible (Ollama, LM Studio, vLLM), or CLI tools (gemini-cli, copilot-cli)
 - Transcription history with search, copy, and persistent storage
 - Voice commands (shorten, translate, change tone, generate reply)
 - Personal dictionary for custom terms and aliases
@@ -32,14 +32,15 @@ murmur-swift/
 │   │   ├── Audio/                    # AudioCaptureService, AudioResampler, VadProcessor
 │   │   ├── Config/                   # ConfigManager, HistoryStore
 │   │   ├── Domain/                   # AppConfig, protocols, domain types
-│   │   ├── LLM/                      # AppleLlmProcessor, Gemini/Copilot CLI, PromptManager
+│   │   ├── LLM/                      # AppleLlm, OpenAI, Claude, GeminiApi, CustomOpenAI, Gemini/Copilot CLI, HttpLlmClient, PromptManager
 │   │   ├── Output/                   # Clipboard, Keyboard, Combined output sinks
 │   │   ├── Pipeline/                 # PipelineOrchestrator, VoiceCommandDetector
 │   │   └── STT/                      # Apple/ElevenLabs/OpenAI/Groq providers, AudioChunker
 │   └── Tests/
 │       ├── AudioTests/               # AudioChunker WAV encoding tests
 │       ├── ConfigTests/              # ConfigManager + HistoryStore tests
-│       └── DomainTests/              # AppConfig + VoiceCommandDetector tests
+│       ├── DomainTests/              # AppConfig, VoiceCommandDetector, PersonalDictionary tests
+│       └── LLMTests/                 # HttpLlmClient response parsing + auth tests
 ├── MurmurApp/                        # Xcode project
 │   ├── Shared/
 │   │   ├── MurmurApp.swift           # App entry point
@@ -65,11 +66,11 @@ murmur-swift/
 # Build the Swift package
 cd MurmurKit && swift build
 
-# Run all tests (18 tests, 5 suites)
+# Run all tests (41 tests, 7 suites)
 cd MurmurKit && swift test
 
 # Build the full app via Xcode
-xcodebuild -project Murmur.xcodeproj -scheme Murmur -configuration Release build
+xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -configuration Release build
 ```
 
 ### Configuration
@@ -96,7 +97,7 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - Apple STT: on-device speech recognition via `SpeechTranscriber`
 
 **LLM Processing**
-- `LlmProcessor` protocol: Text post-processing via CLI tools or Apple Foundation Models
+- `LlmProcessor` protocol: Text post-processing via cloud APIs (OpenAI, Claude, Gemini), local servers (Ollama), CLI tools, or Apple Foundation Models
 - `ProcessingTask`: PostProcess/Shorten/ChangeTone/GenerateReply/Translate
 - `ProcessingOutput`: Processed text with metadata
 
@@ -110,11 +111,7 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 
 ## Known Limitations
 
-1. **CLI Tools Required**: To use LLM post-processing via CLI, you need to install local CLI tools:
-   - `gemini-cli` for Gemini models
-   - `copilot-cli` for GitHub Copilot
-
-   Alternatively, Apple Foundation Models can be used for on-device LLM processing with no external tools. If no LLM provider is configured, the app will output raw transcriptions without post-processing.
+1. **LLM Provider Setup**: LLM post-processing supports multiple providers — cloud APIs (OpenAI, Claude, Gemini), local servers via Custom OpenAI-compatible endpoints (Ollama, LM Studio, vLLM), CLI tools (gemini-cli, copilot-cli), or Apple Foundation Models (on-device, no API key). If no LLM provider is configured, the app outputs raw transcriptions without post-processing.
 
 2. **API Keys Required**: You must provide your own API keys for cloud STT providers (ElevenLabs, OpenAI, or Groq). Apple STT is a free on-device alternative that requires no API key.
 

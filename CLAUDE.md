@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (18 tests, 5 suites)
+# Run all tests (41 tests, 7 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -26,11 +26,11 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
   - `Sources/Audio/` — AudioCaptureService, AudioResampler, VadProcessor
   - `Sources/Config/` — ConfigManager (JSON), HistoryStore
   - `Sources/Domain/` — Protocols (SttProvider, LlmProcessor, OutputSink), domain types (AppConfig, AudioChunk, TranscriptionEvent, ProcessingTask, etc.)
-  - `Sources/LLM/` — AppleLlmProcessor, GeminiProcessor, CopilotProcessor, CliExecutor, PromptManager
+  - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptManager
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
   - `Sources/Pipeline/` — PipelineOrchestrator, VoiceCommandDetector
   - `Sources/STT/` — AppleSttProvider, ElevenLabsProvider, OpenAIProvider, GroqProvider, AudioChunker
-  - `Tests/` — AudioTests, ConfigTests, DomainTests (Swift Testing framework: `@Suite`, `@Test`)
+  - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests (Swift Testing framework: `@Suite`, `@Test`)
 - `MurmurApp/` — Xcode project (imports MurmurKit)
   - `Shared/` — MurmurApp.swift, ViewModels/, Views/
   - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, OverlayView
@@ -68,9 +68,11 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-5 suites, 18 tests (Swift Testing framework):
+7 suites, 41 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
-- `AppConfigTests` — Default values, JSON round-trip
+- `AppConfigTests` — Default values, JSON round-trip, backward compatibility
+- `PersonalDictionaryTests` — Entry CRUD, JSON round-trip, search by term/alias/description
 - `VoiceCommandDetectorTests` — Command detection for shorten/tone/translate/reply
+- `HttpLlmTests` — OpenAI/Claude/Gemini response parsing, auth strategies, URL building
