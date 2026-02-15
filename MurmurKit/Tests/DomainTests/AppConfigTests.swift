@@ -12,6 +12,7 @@ struct AppConfigTests {
         #expect(config.outputMode == .clipboard)
         #expect(config.hotkey == "Ctrl+`")
         #expect(config.appleSttLocale == "auto")
+        #expect(config.sttLanguage == "auto")
         #expect(config.apiKeys.isEmpty)
         #expect(config.personalDictionary.terms.isEmpty)
     }
@@ -23,6 +24,7 @@ struct AppConfigTests {
         config.apiKeys["elevenlabs"] = "test-key"
         config.outputMode = .both
         config.personalDictionary.terms = ["SwiftUI", "macOS"]
+        config.sttLanguage = "zh"
 
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -36,5 +38,31 @@ struct AppConfigTests {
         #expect(decoded.apiKeys["elevenlabs"] == "test-key")
         #expect(decoded.outputMode == .both)
         #expect(decoded.personalDictionary.terms == ["SwiftUI", "macOS"])
+        #expect(decoded.sttLanguage == "zh")
+    }
+
+    @Test("Backward compatibility: JSON without sttLanguage decodes with default")
+    func backwardCompatibility() throws {
+        // Simulates a config file saved before the sttLanguage field was added
+        let json = """
+        {
+            "stt_provider": "appleStt",
+            "api_keys": {},
+            "hotkey": "Ctrl+`",
+            "llm_processor": "appleLlm",
+            "output_mode": "clipboard",
+            "ui_preferences": {"opacity": 0.9, "show_waveform": true, "theme": "dark"},
+            "apple_stt_locale": "auto",
+            "personal_dictionary": {"terms": []}
+        }
+        """
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let config = try decoder.decode(AppConfig.self, from: json.data(using: .utf8)!)
+
+        #expect(config.sttLanguage == "auto")
+        #expect(config.sttProvider == .appleStt)
+        #expect(config.appleSttLocale == "auto")
     }
 }

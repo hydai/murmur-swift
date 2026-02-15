@@ -38,6 +38,9 @@ public struct AppConfig: Codable, Sendable {
     public var uiPreferences: UiPreferences
     public var appleSttLocale: String
     public var personalDictionary: PersonalDictionary
+    /// Language hint for cloud STT providers (ISO 639-1, e.g. "zh", "en", "ja").
+    /// "auto" means no hint — let the API auto-detect.
+    public var sttLanguage: String
 
     public init(
         sttProvider: SttProviderType = .appleStt,
@@ -47,7 +50,8 @@ public struct AppConfig: Codable, Sendable {
         outputMode: OutputMode = .clipboard,
         uiPreferences: UiPreferences = UiPreferences(),
         appleSttLocale: String = "auto",
-        personalDictionary: PersonalDictionary = PersonalDictionary()
+        personalDictionary: PersonalDictionary = PersonalDictionary(),
+        sttLanguage: String = "auto"
     ) {
         self.sttProvider = sttProvider
         self.apiKeys = apiKeys
@@ -57,5 +61,21 @@ public struct AppConfig: Codable, Sendable {
         self.uiPreferences = uiPreferences
         self.appleSttLocale = appleSttLocale
         self.personalDictionary = personalDictionary
+        self.sttLanguage = sttLanguage
+    }
+
+    // Custom decoder for backward compatibility — existing config files
+    // without `stt_language` will load cleanly with the default value.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sttProvider = try container.decode(SttProviderType.self, forKey: .sttProvider)
+        apiKeys = try container.decode([String: String].self, forKey: .apiKeys)
+        hotkey = try container.decode(String.self, forKey: .hotkey)
+        llmProcessor = try container.decode(LlmProcessorType.self, forKey: .llmProcessor)
+        outputMode = try container.decode(OutputMode.self, forKey: .outputMode)
+        uiPreferences = try container.decode(UiPreferences.self, forKey: .uiPreferences)
+        appleSttLocale = try container.decode(String.self, forKey: .appleSttLocale)
+        personalDictionary = try container.decode(PersonalDictionary.self, forKey: .personalDictionary)
+        sttLanguage = try container.decodeIfPresent(String.self, forKey: .sttLanguage) ?? "auto"
     }
 }

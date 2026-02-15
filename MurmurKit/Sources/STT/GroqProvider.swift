@@ -6,6 +6,7 @@ import Foundation
 public actor GroqProvider: SttProvider {
     private let apiKey: String
     private let model: String
+    private let language: String?
 
     private var sampleBuffer: [Int16] = []
     private let batchSampleCount = 16000 * 4
@@ -13,9 +14,10 @@ public actor GroqProvider: SttProvider {
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
 
-    public init(apiKey: String, model: String = "whisper-large-v3") {
+    public init(apiKey: String, model: String = "whisper-large-v3", language: String? = nil) {
         self.apiKey = apiKey
         self.model = model
+        self.language = language
 
         var cont: AsyncStream<TranscriptionEvent>.Continuation!
         self.events = AsyncStream { cont = $0 }
@@ -64,6 +66,12 @@ public actor GroqProvider: SttProvider {
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n".data(using: .utf8)!)
         body.append("json\r\n".data(using: .utf8)!)
+
+        if let language {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(language)\r\n".data(using: .utf8)!)
+        }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 

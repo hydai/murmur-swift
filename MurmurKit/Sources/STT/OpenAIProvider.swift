@@ -7,6 +7,7 @@ import Foundation
 public actor OpenAIProvider: SttProvider {
     private let apiKey: String
     private let model: String
+    private let language: String?
 
     /// Accumulated samples for batching.
     private var sampleBuffer: [Int16] = []
@@ -17,9 +18,10 @@ public actor OpenAIProvider: SttProvider {
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
 
-    public init(apiKey: String, model: String = "whisper-1") {
+    public init(apiKey: String, model: String = "whisper-1", language: String? = nil) {
         self.apiKey = apiKey
         self.model = model
+        self.language = language
 
         var cont: AsyncStream<TranscriptionEvent>.Continuation!
         self.events = AsyncStream { cont = $0 }
@@ -73,6 +75,13 @@ public actor OpenAIProvider: SttProvider {
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n".data(using: .utf8)!)
         body.append("json\r\n".data(using: .utf8)!)
+
+        // Language hint (ISO 639-1) — improves accuracy for known dominant language
+        if let language {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(language)\r\n".data(using: .utf8)!)
+        }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 

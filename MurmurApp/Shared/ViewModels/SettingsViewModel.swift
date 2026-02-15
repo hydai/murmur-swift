@@ -12,6 +12,7 @@ final class SettingsViewModel {
     var outputMode: OutputMode = .clipboard
     var hotkey: String = "Ctrl+`"
     var appleSttLocale: String = "auto"
+    var sttLanguage: String = "auto"
     var opacity: Float = 0.9
     var showWaveform: Bool = true
     var theme: String = "dark"
@@ -46,6 +47,7 @@ final class SettingsViewModel {
         outputMode = config.outputMode
         hotkey = config.hotkey
         appleSttLocale = config.appleSttLocale
+        sttLanguage = config.sttLanguage
         opacity = config.uiPreferences.opacity
         showWaveform = config.uiPreferences.showWaveform
         theme = config.uiPreferences.theme
@@ -75,7 +77,8 @@ final class SettingsViewModel {
             outputMode: outputMode,
             uiPreferences: UiPreferences(opacity: opacity, showWaveform: showWaveform, theme: theme),
             appleSttLocale: appleSttLocale,
-            personalDictionary: PersonalDictionary(terms: dictionaryTerms)
+            personalDictionary: PersonalDictionary(terms: dictionaryTerms),
+            sttLanguage: sttLanguage
         )
 
         do {

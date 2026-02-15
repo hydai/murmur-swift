@@ -101,6 +101,23 @@ private struct ProvidersTab: View {
                     SecureField("Groq API Key", text: $viewModel.groqKey)
                         .textFieldStyle(.roundedBorder)
                 }
+
+                if viewModel.sttProvider != .appleStt {
+                    Picker("STT Language", selection: $viewModel.sttLanguage) {
+                        Text("Auto-detect").tag("auto")
+                        Text("English").tag("en")
+                        Text("Chinese").tag("zh")
+                        Text("Japanese").tag("ja")
+                        Text("Korean").tag("ko")
+                        Text("Spanish").tag("es")
+                        Text("French").tag("fr")
+                        Text("German").tag("de")
+                    }
+
+                    Text("For mixed-language speech, 'Auto-detect' works best with cloud providers.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("LLM Processor") {
@@ -133,6 +150,7 @@ private struct ProvidersTab: View {
         .onChange(of: viewModel.elevenLabsKey) { _, _ in Task { await viewModel.saveConfig() } }
         .onChange(of: viewModel.openAIKey) { _, _ in Task { await viewModel.saveConfig() } }
         .onChange(of: viewModel.groqKey) { _, _ in Task { await viewModel.saveConfig() } }
+        .onChange(of: viewModel.sttLanguage) { _, _ in Task { await viewModel.saveConfig() } }
     }
 }
 

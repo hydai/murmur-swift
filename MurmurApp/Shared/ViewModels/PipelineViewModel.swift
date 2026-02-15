@@ -95,19 +95,23 @@ final class PipelineViewModel {
     // MARK: - Provider factories
 
     private func createSttProvider(_ config: AppConfig) -> any SttProvider {
+        // Convert "auto" to nil — nil means let the API auto-detect
+        let lang: String? = config.sttLanguage == "auto" ? nil : config.sttLanguage
+
         switch config.sttProvider {
         case .appleStt:
+            // Apple STT uses its own locale-based config, not the language hint
             let locale = config.appleSttLocale == "auto" ? nil : Locale(identifier: config.appleSttLocale)
             return AppleSttProvider(locale: locale)
         case .elevenLabs:
             let key = config.apiKeys["elevenlabs"] ?? ""
-            return ElevenLabsProvider(apiKey: key)
+            return ElevenLabsProvider(apiKey: key, languageCode: lang)
         case .openAI:
             let key = config.apiKeys["openai"] ?? ""
-            return OpenAIProvider(apiKey: key)
+            return OpenAIProvider(apiKey: key, language: lang)
         case .groq:
             let key = config.apiKeys["groq"] ?? ""
-            return GroqProvider(apiKey: key)
+            return GroqProvider(apiKey: key, language: lang)
         }
     }
 
