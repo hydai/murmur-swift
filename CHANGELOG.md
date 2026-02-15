@@ -1,3 +1,9 @@
+## 0.1.7 (2026-02-15)
+
+### Fixes
+
+- auto-download on-device speech model when not installed
+
 ## 0.1.6 (2026-02-14)
 
 ### Fixes
