@@ -1,3 +1,13 @@
+## 0.1.8 (2026-02-15)
+
+### Features
+
+- add multilingual STT language config for cloud providers
+
+### Fixes
+
+- resolve pipeline deadlock ("stuck at Transcribing")
+
 ## 0.1.7 (2026-02-15)
 
 ### Fixes
