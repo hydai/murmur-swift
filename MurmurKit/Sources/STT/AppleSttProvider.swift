@@ -164,12 +164,27 @@ public actor AppleSttProvider: SttProvider {
         audioContinuation?.finish()
         audioContinuation = nil
 
-        // Wait for results to drain
-        await resultTask?.value
+        // Wait for results to drain, but don't block forever.
+        // SpeechTranscriber.results may never terminate if the session
+        // didn't produce a final result, causing a permanent hang.
+        if let task = resultTask {
+            let didFinish = await withTaskGroup(of: Bool.self) { group in
+                group.addTask { await task.value; return true }
+                group.addTask { try? await Task.sleep(for: .seconds(3)); return false }
+                let first = await group.next()!
+                group.cancelAll()
+                return first
+            }
+            if !didFinish {
+                task.cancel()
+            }
+        }
         resultTask = nil
         transcriber = nil
         analyzer = nil
 
+        // Always finish the event stream — this is the key fix that
+        // unblocks PipelineOrchestrator's transcriptionTask.
         eventContinuation.finish()
     }
 

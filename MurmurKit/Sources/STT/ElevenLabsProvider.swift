@@ -7,7 +7,7 @@ import Foundation
 public actor ElevenLabsProvider: SttProvider {
     private let apiKey: String
     private let model: String
-    private let languageCode: String
+    private let languageCode: String?
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
@@ -17,7 +17,7 @@ public actor ElevenLabsProvider: SttProvider {
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
 
-    public init(apiKey: String, model: String = "scribe_v1", languageCode: String = "en") {
+    public init(apiKey: String, model: String = "scribe_v1", languageCode: String? = nil) {
         self.apiKey = apiKey
         self.model = model
         self.languageCode = languageCode
@@ -29,10 +29,11 @@ public actor ElevenLabsProvider: SttProvider {
 
     public func startSession() async throws {
         var components = URLComponents(string: "wss://api.elevenlabs.io/v1/speech-to-text/ws")!
-        components.queryItems = [
-            URLQueryItem(name: "model_id", value: model),
-            URLQueryItem(name: "language_code", value: languageCode),
-        ]
+        var queryItems = [URLQueryItem(name: "model_id", value: model)]
+        if let languageCode {
+            queryItems.append(URLQueryItem(name: "language_code", value: languageCode))
+        }
+        components.queryItems = queryItems
 
         var request = URLRequest(url: components.url!)
         request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
@@ -107,7 +108,20 @@ public actor ElevenLabsProvider: SttProvider {
             ws.cancel(with: .normalClosure, reason: nil)
         }
 
-        await receiveTask?.value
+        // Wait for receive loop to end, but don't block forever.
+        // WebSocket may not close cleanly after cancel().
+        if let task = receiveTask {
+            let didFinish = await withTaskGroup(of: Bool.self) { group in
+                group.addTask { await task.value; return true }
+                group.addTask { try? await Task.sleep(for: .seconds(3)); return false }
+                let first = await group.next()!
+                group.cancelAll()
+                return first
+            }
+            if !didFinish {
+                task.cancel()
+            }
+        }
         receiveTask = nil
         webSocketTask = nil
 

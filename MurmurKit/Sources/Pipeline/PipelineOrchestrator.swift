@@ -116,14 +116,62 @@ public actor PipelineOrchestrator {
         }
     }
 
-    /// Stop recording. Post-processing continues automatically.
+    /// Stop recording. Awaits pipeline teardown with timeout to prevent deadlocks.
     public func stop() async {
         guard state == .recording || state == .transcribing else { return }
 
         await audioCapture.stop()
-        // audioTask and transcriptionTask will finish naturally
         levelTask?.cancel()
         levelTask = nil
+
+        // Wait for audio + transcription tasks to complete, but enforce an
+        // overall timeout (longer than the 3s provider-level timeouts).
+        let audio = audioTask
+        let transcription = transcriptionTask
+        let didFinish = await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                await audio?.value
+                await transcription?.value
+                return true
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(5))
+                return false
+            }
+            let first = await group.next()!
+            group.cancelAll()
+            return first
+        }
+
+        if !didFinish {
+            audioTask?.cancel()
+            transcriptionTask?.cancel()
+        }
+        audioTask = nil
+        transcriptionTask = nil
+
+        // Safety net: if state is still mid-pipeline after cleanup,
+        // force transition to idle so the UI never gets permanently stuck.
+        if state == .recording || state == .transcribing {
+            transition(to: .idle)
+        }
+    }
+
+    /// Hard cancel — immediately tears down all tasks and resets to idle.
+    /// Use as an escape hatch when `stop()` itself can't recover.
+    public func cancel() async {
+        await audioCapture.stop()
+
+        audioTask?.cancel()
+        transcriptionTask?.cancel()
+        levelTask?.cancel()
+        audioTask = nil
+        transcriptionTask = nil
+        levelTask = nil
+
+        fullTranscription = ""
+        lastPartialText = ""
+        transition(to: .idle)
     }
 
     // MARK: - Internal
