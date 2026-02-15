@@ -17,14 +17,31 @@ final class SettingsViewModel {
     var showWaveform: Bool = true
     var theme: String = "dark"
 
+    // LLM model override (empty = provider default)
+    var llmModel: String = ""
+
     // API keys by provider name
     var elevenLabsKey: String = ""
     var openAIKey: String = ""
     var groqKey: String = ""
+    var anthropicKey: String = ""
+    var googleAiKey: String = ""
+    var customOpenAIKey: String = ""
 
-    // Personal dictionary
+    // Custom OpenAI-compatible endpoint
+    var customBaseUrl: String = "http://localhost:11434/v1"
+    var customDisplayName: String = "Ollama"
+
+    // Personal dictionary — legacy terms
     var dictionaryTerms: [String] = []
     var newTerm: String = ""
+
+    // Personal dictionary — rich entries
+    var dictionaryEntries: [DictionaryEntry] = []
+    var dictionarySearch: String = ""
+    var newEntryTerm: String = ""
+    var newEntryAlias: String = ""
+    var newEntryDescription: String = ""
 
     // UI state
     var saveError: String?
@@ -54,7 +71,14 @@ final class SettingsViewModel {
         elevenLabsKey = config.apiKeys["elevenlabs"] ?? ""
         openAIKey = config.apiKeys["openai"] ?? ""
         groqKey = config.apiKeys["groq"] ?? ""
+        anthropicKey = config.apiKeys["anthropic"] ?? ""
+        googleAiKey = config.apiKeys["google_ai"] ?? ""
+        customOpenAIKey = config.apiKeys["custom_openai"] ?? ""
+        llmModel = config.llmModel
+        customBaseUrl = config.httpLlmConfig.customBaseUrl
+        customDisplayName = config.httpLlmConfig.customDisplayName
         dictionaryTerms = config.personalDictionary.terms
+        dictionaryEntries = config.personalDictionary.entries
     }
 
     // MARK: - Save
@@ -68,6 +92,9 @@ final class SettingsViewModel {
         if !elevenLabsKey.isEmpty { keys["elevenlabs"] = elevenLabsKey }
         if !openAIKey.isEmpty { keys["openai"] = openAIKey }
         if !groqKey.isEmpty { keys["groq"] = groqKey }
+        if !anthropicKey.isEmpty { keys["anthropic"] = anthropicKey }
+        if !googleAiKey.isEmpty { keys["google_ai"] = googleAiKey }
+        if !customOpenAIKey.isEmpty { keys["custom_openai"] = customOpenAIKey }
 
         let newConfig = AppConfig(
             sttProvider: sttProvider,
@@ -77,8 +104,10 @@ final class SettingsViewModel {
             outputMode: outputMode,
             uiPreferences: UiPreferences(opacity: opacity, showWaveform: showWaveform, theme: theme),
             appleSttLocale: appleSttLocale,
-            personalDictionary: PersonalDictionary(terms: dictionaryTerms),
-            sttLanguage: sttLanguage
+            personalDictionary: PersonalDictionary(terms: dictionaryTerms, entries: dictionaryEntries),
+            sttLanguage: sttLanguage,
+            llmModel: llmModel,
+            httpLlmConfig: HttpLlmConfig(customBaseUrl: customBaseUrl, customDisplayName: customDisplayName)
         )
 
         do {
@@ -115,14 +144,66 @@ final class SettingsViewModel {
     }
 
     private func createLlmProcessor() -> any LlmProcessor {
+        let modelOverride = llmModel.isEmpty ? nil : llmModel
+
         switch llmProcessor {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor()
+            return GeminiProcessor(model: modelOverride ?? "gemini-2.5-flash")
         case .copilot:
             return CopilotProcessor()
+        case .openAILlm:
+            let key = openAIKey.isEmpty ? "" : openAIKey
+            return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
+        case .claude:
+            return ClaudeLlmProcessor(apiKey: anthropicKey, model: modelOverride ?? "claude-sonnet-4-20250514")
+        case .geminiApi:
+            return GeminiApiProcessor(apiKey: googleAiKey, model: modelOverride ?? "gemini-2.0-flash")
+        case .customOpenAI:
+            return CustomOpenAIProcessor(
+                apiKey: customOpenAIKey,
+                model: modelOverride ?? "llama3",
+                baseURL: customBaseUrl
+            )
         }
+    }
+
+    // MARK: - Dictionary Entry CRUD
+
+    func addEntry() {
+        let trimmed = newEntryTerm.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let entry = DictionaryEntry(
+            term: trimmed,
+            alias: newEntryAlias.isEmpty ? nil : newEntryAlias.trimmingCharacters(in: .whitespaces),
+            description: newEntryDescription.isEmpty ? nil : newEntryDescription.trimmingCharacters(in: .whitespaces)
+        )
+        dictionaryEntries.append(entry)
+        newEntryTerm = ""
+        newEntryAlias = ""
+        newEntryDescription = ""
+        Task { await saveConfig() }
+    }
+
+    func removeEntry(_ entry: DictionaryEntry) {
+        dictionaryEntries.removeAll { $0.id == entry.id }
+        Task { await saveConfig() }
+    }
+
+    func updateEntry(_ entry: DictionaryEntry) {
+        if let index = dictionaryEntries.firstIndex(where: { $0.id == entry.id }) {
+            dictionaryEntries[index] = entry
+            Task { await saveConfig() }
+        }
+    }
+
+    var filteredEntries: [DictionaryEntry] {
+        if dictionarySearch.isEmpty {
+            return dictionaryEntries
+        }
+        let dict = PersonalDictionary(entries: dictionaryEntries)
+        return dict.search(dictionarySearch)
     }
 
     /// Which API key fields to show based on selected STT provider.

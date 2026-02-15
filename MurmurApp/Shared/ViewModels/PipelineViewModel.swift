@@ -78,8 +78,8 @@ final class PipelineViewModel {
         let output = CombinedOutput(mode: config.outputMode)
         await orchestrator.setOutputSink(output)
 
-        // Set dictionary terms
-        await orchestrator.setDictionaryTerms(config.personalDictionary.terms)
+        // Set dictionary terms (includes both legacy terms and rich entry terms/aliases)
+        await orchestrator.setDictionaryTerms(config.personalDictionary.allTermStrings)
 
         do {
             try await orchestrator.start()
@@ -116,13 +116,31 @@ final class PipelineViewModel {
     }
 
     private func createLlmProcessor(_ config: AppConfig) -> any LlmProcessor {
+        let modelOverride = config.llmModel.isEmpty ? nil : config.llmModel
+
         switch config.llmProcessor {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor()
+            return GeminiProcessor(model: modelOverride ?? "gemini-2.5-flash")
         case .copilot:
             return CopilotProcessor()
+        case .openAILlm:
+            let key = config.apiKeys["openai_llm"] ?? config.apiKeys["openai"] ?? ""
+            return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
+        case .claude:
+            let key = config.apiKeys["anthropic"] ?? ""
+            return ClaudeLlmProcessor(apiKey: key, model: modelOverride ?? "claude-sonnet-4-20250514")
+        case .geminiApi:
+            let key = config.apiKeys["google_ai"] ?? ""
+            return GeminiApiProcessor(apiKey: key, model: modelOverride ?? "gemini-2.0-flash")
+        case .customOpenAI:
+            let key = config.apiKeys["custom_openai"] ?? ""
+            return CustomOpenAIProcessor(
+                apiKey: key,
+                model: modelOverride ?? "llama3",
+                baseURL: config.httpLlmConfig.customBaseUrl
+            )
         }
     }
 

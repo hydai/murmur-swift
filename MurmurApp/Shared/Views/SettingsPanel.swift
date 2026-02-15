@@ -19,7 +19,7 @@ struct SettingsPanel: View {
             AppearanceTab(viewModel: viewModel)
                 .tabItem { Label("Appearance", systemImage: "paintbrush") }
         }
-        .frame(width: 520, height: 420)
+        .frame(width: 580, height: 480)
         .task { await viewModel.loadConfig() }
     }
 }
@@ -81,76 +81,157 @@ private struct ProvidersTab: View {
 
     var body: some View {
         Form {
-            Section("Speech-to-Text") {
-                Picker("STT Provider", selection: $viewModel.sttProvider) {
-                    Text("Apple (on-device)").tag(SttProviderType.appleStt)
-                    Text("ElevenLabs").tag(SttProviderType.elevenLabs)
-                    Text("OpenAI Whisper").tag(SttProviderType.openAI)
-                    Text("Groq").tag(SttProviderType.groq)
-                }
-
-                if viewModel.sttProvider == .elevenLabs {
-                    SecureField("ElevenLabs API Key", text: $viewModel.elevenLabsKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-                if viewModel.sttProvider == .openAI {
-                    SecureField("OpenAI API Key", text: $viewModel.openAIKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-                if viewModel.sttProvider == .groq {
-                    SecureField("Groq API Key", text: $viewModel.groqKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                if viewModel.sttProvider != .appleStt {
-                    Picker("STT Language", selection: $viewModel.sttLanguage) {
-                        Text("Auto-detect").tag("auto")
-                        Text("English").tag("en")
-                        Text("Chinese").tag("zh")
-                        Text("Japanese").tag("ja")
-                        Text("Korean").tag("ko")
-                        Text("Spanish").tag("es")
-                        Text("French").tag("fr")
-                        Text("German").tag("de")
-                    }
-
-                    Text("For mixed-language speech, 'Auto-detect' works best with cloud providers.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("LLM Processor") {
-                Picker("LLM Processor", selection: $viewModel.llmProcessor) {
-                    Text("Apple (on-device)").tag(LlmProcessorType.appleLlm)
-                    Text("Gemini CLI").tag(LlmProcessorType.gemini)
-                    Text("Copilot CLI").tag(LlmProcessorType.copilot)
-                }
-
-                HStack {
-                    Button("Check Availability") {
-                        Task { await viewModel.checkLlmHealth() }
-                    }
-
-                    if let status = viewModel.llmHealthStatus {
-                        Text(status)
-                            .foregroundStyle(status == "Available" ? .green : .red)
-                            .font(.caption)
-                    }
-                }
-            }
-
+            sttSection
+            llmSection
             if let error = viewModel.saveError {
                 Text(error).foregroundStyle(.red).font(.caption)
             }
         }
         .formStyle(.grouped)
-        .onChange(of: viewModel.sttProvider) { _, _ in Task { await viewModel.saveConfig() } }
-        .onChange(of: viewModel.llmProcessor) { _, _ in Task { await viewModel.saveConfig() } }
-        .onChange(of: viewModel.elevenLabsKey) { _, _ in Task { await viewModel.saveConfig() } }
-        .onChange(of: viewModel.openAIKey) { _, _ in Task { await viewModel.saveConfig() } }
-        .onChange(of: viewModel.groqKey) { _, _ in Task { await viewModel.saveConfig() } }
-        .onChange(of: viewModel.sttLanguage) { _, _ in Task { await viewModel.saveConfig() } }
+        .modifier(SttSaveOnChange(viewModel: viewModel))
+        .modifier(LlmSaveOnChange(viewModel: viewModel))
+    }
+
+    @ViewBuilder
+    private var sttSection: some View {
+        Section("Speech-to-Text") {
+            Picker("STT Provider", selection: $viewModel.sttProvider) {
+                Text("Apple (on-device)").tag(SttProviderType.appleStt)
+                Text("ElevenLabs").tag(SttProviderType.elevenLabs)
+                Text("OpenAI Whisper").tag(SttProviderType.openAI)
+                Text("Groq").tag(SttProviderType.groq)
+            }
+
+            if viewModel.sttProvider == .elevenLabs {
+                SecureField("ElevenLabs API Key", text: $viewModel.elevenLabsKey)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if viewModel.sttProvider == .openAI {
+                SecureField("OpenAI API Key", text: $viewModel.openAIKey)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if viewModel.sttProvider == .groq {
+                SecureField("Groq API Key", text: $viewModel.groqKey)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            if viewModel.sttProvider != .appleStt {
+                Picker("STT Language", selection: $viewModel.sttLanguage) {
+                    Text("Auto-detect").tag("auto")
+                    Text("English").tag("en")
+                    Text("Chinese").tag("zh")
+                    Text("Japanese").tag("ja")
+                    Text("Korean").tag("ko")
+                    Text("Spanish").tag("es")
+                    Text("French").tag("fr")
+                    Text("German").tag("de")
+                }
+
+                Text("For mixed-language speech, 'Auto-detect' works best with cloud providers.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var llmSection: some View {
+        Section("LLM Processor") {
+            Picker("LLM Processor", selection: $viewModel.llmProcessor) {
+                Text("Apple (on-device)").tag(LlmProcessorType.appleLlm)
+                Text("Gemini CLI").tag(LlmProcessorType.gemini)
+                Text("Copilot CLI").tag(LlmProcessorType.copilot)
+                Text("OpenAI API").tag(LlmProcessorType.openAILlm)
+                Text("Claude API").tag(LlmProcessorType.claude)
+                Text("Gemini API").tag(LlmProcessorType.geminiApi)
+                Text("Custom (OpenAI-compat)").tag(LlmProcessorType.customOpenAI)
+            }
+
+            llmApiKeyFields
+            llmModelOverride
+            llmHealthCheck
+        }
+    }
+
+    @ViewBuilder
+    private var llmApiKeyFields: some View {
+        if viewModel.llmProcessor == .openAILlm {
+            SecureField("OpenAI API Key", text: $viewModel.openAIKey)
+                .textFieldStyle(.roundedBorder)
+        }
+        if viewModel.llmProcessor == .claude {
+            SecureField("Anthropic API Key", text: $viewModel.anthropicKey)
+                .textFieldStyle(.roundedBorder)
+        }
+        if viewModel.llmProcessor == .geminiApi {
+            SecureField("Google AI API Key", text: $viewModel.googleAiKey)
+                .textFieldStyle(.roundedBorder)
+        }
+        if viewModel.llmProcessor == .customOpenAI {
+            SecureField("API Key (optional)", text: $viewModel.customOpenAIKey)
+                .textFieldStyle(.roundedBorder)
+            TextField("Base URL", text: $viewModel.customBaseUrl)
+                .textFieldStyle(.roundedBorder)
+            TextField("Display Name", text: $viewModel.customDisplayName)
+                .textFieldStyle(.roundedBorder)
+            Text("OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, etc.)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var llmModelOverride: some View {
+        if viewModel.llmProcessor != .appleLlm {
+            TextField("Model Override (empty = default)", text: $viewModel.llmModel)
+                .textFieldStyle(.roundedBorder)
+            Text("Leave empty to use the provider's default model.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var llmHealthCheck: some View {
+        HStack {
+            Button("Check Availability") {
+                Task { await viewModel.checkLlmHealth() }
+            }
+            if let status = viewModel.llmHealthStatus {
+                Text(status)
+                    .foregroundStyle(status == "Available" ? .green : .red)
+                    .font(.caption)
+            }
+        }
+    }
+}
+
+/// Extracted ViewModifiers to avoid SwiftUI type-checker timeout with many .onChange calls.
+private struct SttSaveOnChange: ViewModifier {
+    @Bindable var viewModel: SettingsViewModel
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: viewModel.sttProvider) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.elevenLabsKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.openAIKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.groqKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.sttLanguage) { _, _ in Task { await viewModel.saveConfig() } }
+    }
+}
+
+private struct LlmSaveOnChange: ViewModifier {
+    @Bindable var viewModel: SettingsViewModel
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: viewModel.llmProcessor) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.anthropicKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.googleAiKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customOpenAIKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customBaseUrl) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customDisplayName) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.llmModel) { _, _ in Task { await viewModel.saveConfig() } }
     }
 }
 
@@ -164,30 +245,99 @@ private struct DictionaryTab: View {
             Text("Personal Dictionary")
                 .font(.headline)
 
-            Text("Add terms to improve transcription accuracy (e.g., proper nouns, technical terms).")
+            Text("Add terms with optional aliases and descriptions to improve transcription accuracy.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            HStack {
-                TextField("Add term...", text: $viewModel.newTerm)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { viewModel.addTerm() }
+            // Search bar
+            TextField("Search entries...", text: $viewModel.dictionarySearch)
+                .textFieldStyle(.roundedBorder)
 
-                Button("Add") { viewModel.addTerm() }
-                    .disabled(viewModel.newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+            // Add new entry form
+            HStack(spacing: 8) {
+                TextField("Term", text: $viewModel.newEntryTerm)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { viewModel.addEntry() }
+
+                TextField("Alias (optional)", text: $viewModel.newEntryAlias)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 120)
+
+                TextField("Description (optional)", text: $viewModel.newEntryDescription)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Add") { viewModel.addEntry() }
+                    .disabled(viewModel.newEntryTerm.trimmingCharacters(in: .whitespaces).isEmpty)
             }
 
+            // Rich entries list
             List {
-                ForEach(viewModel.dictionaryTerms, id: \.self) { term in
-                    Text(term)
-                }
-                .onDelete { offsets in
-                    viewModel.removeTerm(at: offsets)
+                ForEach(viewModel.filteredEntries) { entry in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.term).fontWeight(.medium)
+                            if let alias = entry.alias, !alias.isEmpty {
+                                Text("aka: \(alias)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let desc = entry.description, !desc.isEmpty {
+                                Text(desc)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            viewModel.removeEntry(entry)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .listStyle(.bordered)
 
-            if viewModel.dictionaryTerms.isEmpty {
+            // Legacy terms section
+            if !viewModel.dictionaryTerms.isEmpty {
+                Divider()
+
+                HStack {
+                    Text("Legacy Terms")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text("\(viewModel.dictionaryTerms.count) terms")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    TextField("Add simple term...", text: $viewModel.newTerm)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { viewModel.addTerm() }
+
+                    Button("Add") { viewModel.addTerm() }
+                        .disabled(viewModel.newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+
+                List {
+                    ForEach(viewModel.dictionaryTerms, id: \.self) { term in
+                        Text(term)
+                    }
+                    .onDelete { offsets in
+                        viewModel.removeTerm(at: offsets)
+                    }
+                }
+                .listStyle(.bordered)
+                .frame(maxHeight: 100)
+            }
+
+            if viewModel.dictionaryEntries.isEmpty && viewModel.dictionaryTerms.isEmpty {
                 Text("No terms added yet.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)

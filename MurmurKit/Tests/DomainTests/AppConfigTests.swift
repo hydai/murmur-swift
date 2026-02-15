@@ -13,8 +13,12 @@ struct AppConfigTests {
         #expect(config.hotkey == "Ctrl+`")
         #expect(config.appleSttLocale == "auto")
         #expect(config.sttLanguage == "auto")
+        #expect(config.llmModel == "")
+        #expect(config.httpLlmConfig.customBaseUrl == "http://localhost:11434/v1")
+        #expect(config.httpLlmConfig.customDisplayName == "Ollama")
         #expect(config.apiKeys.isEmpty)
         #expect(config.personalDictionary.terms.isEmpty)
+        #expect(config.personalDictionary.entries.isEmpty)
     }
 
     @Test("Config round-trips through JSON")
@@ -25,6 +29,9 @@ struct AppConfigTests {
         config.outputMode = .both
         config.personalDictionary.terms = ["SwiftUI", "macOS"]
         config.sttLanguage = "zh"
+        config.llmModel = "gpt-4o"
+        config.llmProcessor = .openAILlm
+        config.httpLlmConfig = HttpLlmConfig(customBaseUrl: "http://custom:8080/v1", customDisplayName: "Custom")
 
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -39,11 +46,34 @@ struct AppConfigTests {
         #expect(decoded.outputMode == .both)
         #expect(decoded.personalDictionary.terms == ["SwiftUI", "macOS"])
         #expect(decoded.sttLanguage == "zh")
+        #expect(decoded.llmModel == "gpt-4o")
+        #expect(decoded.llmProcessor == .openAILlm)
+        #expect(decoded.httpLlmConfig.customBaseUrl == "http://custom:8080/v1")
+        #expect(decoded.httpLlmConfig.customDisplayName == "Custom")
+    }
+
+    @Test("New LlmProcessorType cases round-trip through JSON")
+    func newLlmTypesRoundTrip() throws {
+        let types: [LlmProcessorType] = [.openAILlm, .claude, .geminiApi, .customOpenAI]
+        for type in types {
+            var config = AppConfig()
+            config.llmProcessor = type
+
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            let data = try encoder.encode(config)
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let decoded = try decoder.decode(AppConfig.self, from: data)
+
+            #expect(decoded.llmProcessor == type)
+        }
     }
 
     @Test("Backward compatibility: JSON without sttLanguage decodes with default")
     func backwardCompatibility() throws {
-        // Simulates a config file saved before the sttLanguage field was added
+        // Simulates a config file saved before sttLanguage/llmModel/httpLlmConfig were added
         let json = """
         {
             "stt_provider": "appleStt",
@@ -64,5 +94,8 @@ struct AppConfigTests {
         #expect(config.sttLanguage == "auto")
         #expect(config.sttProvider == .appleStt)
         #expect(config.appleSttLocale == "auto")
+        #expect(config.llmModel == "")
+        #expect(config.httpLlmConfig.customBaseUrl == "http://localhost:11434/v1")
+        #expect(config.personalDictionary.entries.isEmpty)
     }
 }

@@ -13,6 +13,21 @@ public enum LlmProcessorType: String, Codable, Sendable, CaseIterable {
     case appleLlm
     case gemini
     case copilot
+    case openAILlm
+    case claude
+    case geminiApi
+    case customOpenAI
+}
+
+/// Configuration for custom OpenAI-compatible LLM endpoints.
+public struct HttpLlmConfig: Codable, Sendable {
+    public var customBaseUrl: String
+    public var customDisplayName: String
+
+    public init(customBaseUrl: String = "http://localhost:11434/v1", customDisplayName: String = "Ollama") {
+        self.customBaseUrl = customBaseUrl
+        self.customDisplayName = customDisplayName
+    }
 }
 
 /// UI display preferences.
@@ -41,6 +56,10 @@ public struct AppConfig: Codable, Sendable {
     /// Language hint for cloud STT providers (ISO 639-1, e.g. "zh", "en", "ja").
     /// "auto" means no hint — let the API auto-detect.
     public var sttLanguage: String
+    /// Optional model override — empty string means use provider default.
+    public var llmModel: String
+    /// Configuration for custom OpenAI-compatible endpoints.
+    public var httpLlmConfig: HttpLlmConfig
 
     public init(
         sttProvider: SttProviderType = .appleStt,
@@ -51,7 +70,9 @@ public struct AppConfig: Codable, Sendable {
         uiPreferences: UiPreferences = UiPreferences(),
         appleSttLocale: String = "auto",
         personalDictionary: PersonalDictionary = PersonalDictionary(),
-        sttLanguage: String = "auto"
+        sttLanguage: String = "auto",
+        llmModel: String = "",
+        httpLlmConfig: HttpLlmConfig = HttpLlmConfig()
     ) {
         self.sttProvider = sttProvider
         self.apiKeys = apiKeys
@@ -62,6 +83,8 @@ public struct AppConfig: Codable, Sendable {
         self.appleSttLocale = appleSttLocale
         self.personalDictionary = personalDictionary
         self.sttLanguage = sttLanguage
+        self.llmModel = llmModel
+        self.httpLlmConfig = httpLlmConfig
     }
 
     // Custom decoder for backward compatibility — existing config files
@@ -77,5 +100,7 @@ public struct AppConfig: Codable, Sendable {
         appleSttLocale = try container.decode(String.self, forKey: .appleSttLocale)
         personalDictionary = try container.decode(PersonalDictionary.self, forKey: .personalDictionary)
         sttLanguage = try container.decodeIfPresent(String.self, forKey: .sttLanguage) ?? "auto"
+        llmModel = try container.decodeIfPresent(String.self, forKey: .llmModel) ?? ""
+        httpLlmConfig = try container.decodeIfPresent(HttpLlmConfig.self, forKey: .httpLlmConfig) ?? HttpLlmConfig()
     }
 }
