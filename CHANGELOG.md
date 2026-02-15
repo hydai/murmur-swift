@@ -1,3 +1,10 @@
+## 0.1.9 (2026-02-15)
+
+### Features
+
+- add HTTP API LLM processors with model override and custom endpoints
+- add rich personal dictionary with entries, aliases, and search
+
 ## 0.1.8 (2026-02-15)
 
 ### Features
