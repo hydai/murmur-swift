@@ -1,3 +1,11 @@
+## 0.1.10 (2026-02-27)
+
+### Features
+
+- enforce Traditional Chinese and preserve original language in prompts
+- add custom OpenAI-compatible STT endpoint support
+- add full ElevenLabs language selector with ISO 639-3 mapping
+
 ## 0.1.9 (2026-02-15)
 
 ### Features
