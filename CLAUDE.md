@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (41 tests, 7 suites)
+# Run all tests (53 tests, 10 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -29,8 +29,8 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
   - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptManager
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
   - `Sources/Pipeline/` — PipelineOrchestrator, VoiceCommandDetector
-  - `Sources/STT/` — AppleSttProvider, ElevenLabsProvider, OpenAIProvider, GroqProvider, AudioChunker
-  - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests (Swift Testing framework: `@Suite`, `@Test`)
+  - `Sources/STT/` — AppleSttProvider, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
+  - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
 - `MurmurApp/` — Xcode project (imports MurmurKit)
   - `Shared/` — MurmurApp.swift, ViewModels/, Views/
   - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, OverlayView
@@ -68,11 +68,14 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-7 suites, 41 tests (Swift Testing framework):
+10 suites, 53 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
-- `AppConfigTests` — Default values, JSON round-trip, backward compatibility
+- `AppConfigTests` — Default values, JSON round-trip, backward compatibility, HttpSttConfig
 - `PersonalDictionaryTests` — Entry CRUD, JSON round-trip, search by term/alias/description
 - `VoiceCommandDetectorTests` — Command detection for shorten/tone/translate/reply
 - `HttpLlmTests` — OpenAI/Claude/Gemini response parsing, auth strategies, URL building
+- `PromptManagerTests` — Chinese Language Rule, Preserve Original Language in templates
+- `CustomSttProviderTests` — Construction with default/custom/nil-key parameters
+- `ElevenLabsLanguagesTests` — ISO 639-1→639-3 mapping, unique IDs, language count
