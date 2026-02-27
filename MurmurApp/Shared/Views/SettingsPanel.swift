@@ -100,6 +100,7 @@ private struct ProvidersTab: View {
                 Text("ElevenLabs").tag(SttProviderType.elevenLabs)
                 Text("OpenAI Whisper").tag(SttProviderType.openAI)
                 Text("Groq").tag(SttProviderType.groq)
+                Text("Custom (OpenAI-compat)").tag(SttProviderType.customStt)
             }
 
             if viewModel.sttProvider == .elevenLabs {
@@ -113,6 +114,19 @@ private struct ProvidersTab: View {
             if viewModel.sttProvider == .groq {
                 SecureField("Groq API Key", text: $viewModel.groqKey)
                     .textFieldStyle(.roundedBorder)
+            }
+            if viewModel.sttProvider == .customStt {
+                SecureField("API Key (optional)", text: $viewModel.customSttKey)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Base URL", text: $viewModel.customSttBaseUrl)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Display Name", text: $viewModel.customSttDisplayName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Model", text: $viewModel.customSttModel)
+                    .textFieldStyle(.roundedBorder)
+                Text("OpenAI-compatible STT endpoint (Whisper.cpp, Faster Whisper, etc.)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if viewModel.sttProvider != .appleStt {
@@ -217,6 +231,10 @@ private struct SttSaveOnChange: ViewModifier {
             .onChange(of: viewModel.openAIKey) { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.groqKey) { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.sttLanguage) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customSttKey) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customSttBaseUrl) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customSttDisplayName) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.customSttModel) { _, _ in Task { await viewModel.saveConfig() } }
     }
 }
 

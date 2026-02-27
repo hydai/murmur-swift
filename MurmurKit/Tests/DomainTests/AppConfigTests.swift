@@ -16,6 +16,9 @@ struct AppConfigTests {
         #expect(config.llmModel == "")
         #expect(config.httpLlmConfig.customBaseUrl == "http://localhost:11434/v1")
         #expect(config.httpLlmConfig.customDisplayName == "Ollama")
+        #expect(config.httpSttConfig.customBaseUrl == "http://localhost:8080")
+        #expect(config.httpSttConfig.customDisplayName == "Custom STT")
+        #expect(config.httpSttConfig.customModel == "whisper-1")
         #expect(config.apiKeys.isEmpty)
         #expect(config.personalDictionary.terms.isEmpty)
         #expect(config.personalDictionary.entries.isEmpty)
@@ -50,6 +53,32 @@ struct AppConfigTests {
         #expect(decoded.llmProcessor == .openAILlm)
         #expect(decoded.httpLlmConfig.customBaseUrl == "http://custom:8080/v1")
         #expect(decoded.httpLlmConfig.customDisplayName == "Custom")
+    }
+
+    @Test("Custom STT config round-trips through JSON")
+    func customSttConfigRoundTrip() throws {
+        var config = AppConfig()
+        config.sttProvider = .customStt
+        config.apiKeys["custom_stt"] = "test-stt-key"
+        config.httpSttConfig = HttpSttConfig(
+            customBaseUrl: "http://whisper:9000",
+            customDisplayName: "My Whisper",
+            customModel: "large-v3"
+        )
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let data = try encoder.encode(config)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let decoded = try decoder.decode(AppConfig.self, from: data)
+
+        #expect(decoded.sttProvider == .customStt)
+        #expect(decoded.apiKeys["custom_stt"] == "test-stt-key")
+        #expect(decoded.httpSttConfig.customBaseUrl == "http://whisper:9000")
+        #expect(decoded.httpSttConfig.customDisplayName == "My Whisper")
+        #expect(decoded.httpSttConfig.customModel == "large-v3")
     }
 
     @Test("New LlmProcessorType cases round-trip through JSON")
@@ -96,6 +125,8 @@ struct AppConfigTests {
         #expect(config.appleSttLocale == "auto")
         #expect(config.llmModel == "")
         #expect(config.httpLlmConfig.customBaseUrl == "http://localhost:11434/v1")
+        #expect(config.httpSttConfig.customBaseUrl == "http://localhost:8080")
+        #expect(config.httpSttConfig.customModel == "whisper-1")
         #expect(config.personalDictionary.entries.isEmpty)
     }
 }

@@ -6,6 +6,7 @@ public enum SttProviderType: String, Codable, Sendable, CaseIterable {
     case elevenLabs
     case openAI
     case groq
+    case customStt
 }
 
 /// LLM processor selection.
@@ -17,6 +18,19 @@ public enum LlmProcessorType: String, Codable, Sendable, CaseIterable {
     case claude
     case geminiApi
     case customOpenAI
+}
+
+/// Configuration for custom OpenAI-compatible STT endpoints.
+public struct HttpSttConfig: Codable, Sendable {
+    public var customBaseUrl: String
+    public var customDisplayName: String
+    public var customModel: String
+
+    public init(customBaseUrl: String = "http://localhost:8080", customDisplayName: String = "Custom STT", customModel: String = "whisper-1") {
+        self.customBaseUrl = customBaseUrl
+        self.customDisplayName = customDisplayName
+        self.customModel = customModel
+    }
 }
 
 /// Configuration for custom OpenAI-compatible LLM endpoints.
@@ -58,8 +72,10 @@ public struct AppConfig: Codable, Sendable {
     public var sttLanguage: String
     /// Optional model override — empty string means use provider default.
     public var llmModel: String
-    /// Configuration for custom OpenAI-compatible endpoints.
+    /// Configuration for custom OpenAI-compatible LLM endpoints.
     public var httpLlmConfig: HttpLlmConfig
+    /// Configuration for custom OpenAI-compatible STT endpoints.
+    public var httpSttConfig: HttpSttConfig
 
     public init(
         sttProvider: SttProviderType = .appleStt,
@@ -72,7 +88,8 @@ public struct AppConfig: Codable, Sendable {
         personalDictionary: PersonalDictionary = PersonalDictionary(),
         sttLanguage: String = "auto",
         llmModel: String = "",
-        httpLlmConfig: HttpLlmConfig = HttpLlmConfig()
+        httpLlmConfig: HttpLlmConfig = HttpLlmConfig(),
+        httpSttConfig: HttpSttConfig = HttpSttConfig()
     ) {
         self.sttProvider = sttProvider
         self.apiKeys = apiKeys
@@ -85,6 +102,7 @@ public struct AppConfig: Codable, Sendable {
         self.sttLanguage = sttLanguage
         self.llmModel = llmModel
         self.httpLlmConfig = httpLlmConfig
+        self.httpSttConfig = httpSttConfig
     }
 
     // Custom decoder for backward compatibility — existing config files
@@ -102,5 +120,6 @@ public struct AppConfig: Codable, Sendable {
         sttLanguage = try container.decodeIfPresent(String.self, forKey: .sttLanguage) ?? "auto"
         llmModel = try container.decodeIfPresent(String.self, forKey: .llmModel) ?? ""
         httpLlmConfig = try container.decodeIfPresent(HttpLlmConfig.self, forKey: .httpLlmConfig) ?? HttpLlmConfig()
+        httpSttConfig = try container.decodeIfPresent(HttpSttConfig.self, forKey: .httpSttConfig) ?? HttpSttConfig()
     }
 }

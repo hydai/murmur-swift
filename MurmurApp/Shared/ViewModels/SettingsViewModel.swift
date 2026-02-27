@@ -28,9 +28,15 @@ final class SettingsViewModel {
     var googleAiKey: String = ""
     var customOpenAIKey: String = ""
 
-    // Custom OpenAI-compatible endpoint
+    // Custom OpenAI-compatible LLM endpoint
     var customBaseUrl: String = "http://localhost:11434/v1"
     var customDisplayName: String = "Ollama"
+
+    // Custom OpenAI-compatible STT endpoint
+    var customSttKey: String = ""
+    var customSttBaseUrl: String = "http://localhost:8080"
+    var customSttDisplayName: String = "Custom STT"
+    var customSttModel: String = "whisper-1"
 
     // Personal dictionary — legacy terms
     var dictionaryTerms: [String] = []
@@ -77,6 +83,10 @@ final class SettingsViewModel {
         llmModel = config.llmModel
         customBaseUrl = config.httpLlmConfig.customBaseUrl
         customDisplayName = config.httpLlmConfig.customDisplayName
+        customSttKey = config.apiKeys["custom_stt"] ?? ""
+        customSttBaseUrl = config.httpSttConfig.customBaseUrl
+        customSttDisplayName = config.httpSttConfig.customDisplayName
+        customSttModel = config.httpSttConfig.customModel
         dictionaryTerms = config.personalDictionary.terms
         dictionaryEntries = config.personalDictionary.entries
     }
@@ -95,6 +105,7 @@ final class SettingsViewModel {
         if !anthropicKey.isEmpty { keys["anthropic"] = anthropicKey }
         if !googleAiKey.isEmpty { keys["google_ai"] = googleAiKey }
         if !customOpenAIKey.isEmpty { keys["custom_openai"] = customOpenAIKey }
+        if !customSttKey.isEmpty { keys["custom_stt"] = customSttKey }
 
         let newConfig = AppConfig(
             sttProvider: sttProvider,
@@ -107,7 +118,8 @@ final class SettingsViewModel {
             personalDictionary: PersonalDictionary(terms: dictionaryTerms, entries: dictionaryEntries),
             sttLanguage: sttLanguage,
             llmModel: llmModel,
-            httpLlmConfig: HttpLlmConfig(customBaseUrl: customBaseUrl, customDisplayName: customDisplayName)
+            httpLlmConfig: HttpLlmConfig(customBaseUrl: customBaseUrl, customDisplayName: customDisplayName),
+            httpSttConfig: HttpSttConfig(customBaseUrl: customSttBaseUrl, customDisplayName: customSttDisplayName, customModel: customSttModel)
         )
 
         do {
@@ -218,6 +230,7 @@ final class SettingsViewModel {
         case .elevenLabs: return "ElevenLabs API Key"
         case .openAI: return "OpenAI API Key"
         case .groq: return "Groq API Key"
+        case .customStt: return "API Key (optional)"
         }
     }
 }

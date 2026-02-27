@@ -112,6 +112,15 @@ final class PipelineViewModel {
         case .groq:
             let key = config.apiKeys["groq"] ?? ""
             return GroqProvider(apiKey: key, language: lang)
+        case .customStt:
+            let key = config.apiKeys["custom_stt"]
+            let apiKey: String? = (key ?? "").isEmpty ? nil : key
+            return CustomSttProvider(
+                apiKey: apiKey,
+                model: config.httpSttConfig.customModel,
+                baseURL: config.httpSttConfig.customBaseUrl,
+                language: lang
+            )
         }
     }
 
