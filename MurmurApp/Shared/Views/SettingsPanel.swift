@@ -130,15 +130,23 @@ private struct ProvidersTab: View {
             }
 
             if viewModel.sttProvider != .appleStt {
-                Picker("STT Language", selection: $viewModel.sttLanguage) {
-                    Text("Auto-detect").tag("auto")
-                    Text("English").tag("en")
-                    Text("Chinese").tag("zh")
-                    Text("Japanese").tag("ja")
-                    Text("Korean").tag("ko")
-                    Text("Spanish").tag("es")
-                    Text("French").tag("fr")
-                    Text("German").tag("de")
+                if viewModel.sttProvider == .elevenLabs {
+                    Picker("STT Language", selection: $viewModel.sttLanguage) {
+                        ForEach(ElevenLabsLanguages.all, id: \.id) { lang in
+                            Text(lang.displayName).tag(lang.id)
+                        }
+                    }
+                } else {
+                    Picker("STT Language", selection: $viewModel.sttLanguage) {
+                        Text("Auto-detect").tag("auto")
+                        Text("English").tag("en")
+                        Text("Chinese").tag("zh")
+                        Text("Japanese").tag("ja")
+                        Text("Korean").tag("ko")
+                        Text("Spanish").tag("es")
+                        Text("French").tag("fr")
+                        Text("German").tag("de")
+                    }
                 }
 
                 Text("For mixed-language speech, 'Auto-detect' works best with cloud providers.")

@@ -105,7 +105,8 @@ final class PipelineViewModel {
             return AppleSttProvider(locale: locale)
         case .elevenLabs:
             let key = config.apiKeys["elevenlabs"] ?? ""
-            return ElevenLabsProvider(apiKey: key, languageCode: lang)
+            let elevenLabsLang: String? = lang.flatMap { ElevenLabsLanguages.iso639_3(for: $0) ?? $0 }
+            return ElevenLabsProvider(apiKey: key, languageCode: elevenLabsLang)
         case .openAI:
             let key = config.apiKeys["openai"] ?? ""
             return OpenAIProvider(apiKey: key, language: lang)
