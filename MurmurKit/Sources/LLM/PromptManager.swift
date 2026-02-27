@@ -52,6 +52,7 @@ public struct PromptManager: Sendable {
         ### 2. Fix STT Misrecognitions
 
         Speech-to-text engines frequently mishear words. Identify and correct phonetically similar misrecognitions by inferring the intended word from context.
+        - **Important:** When the input contains non-English words or phrases, do not "correct" them into English — they are likely intentional foreign language content, not misrecognitions
 
         ### 3. Remove Duplications and Repetitions
 
@@ -64,6 +65,7 @@ public struct PromptManager: Sendable {
         ### 5. Fix Grammar and Punctuation
 
         Correct grammatical errors, add proper punctuation, capitalization, and sentence boundaries.
+        - Preserve the original language(s) of the speaker — do not translate or replace non-English content with English
 
         ### 6. Preserve Meaning and Tone
 
@@ -72,6 +74,18 @@ public struct PromptManager: Sendable {
         ### 7. Apply Personal Dictionary
 
         When the transcription contains words phonetically close to terms in the personal dictionary, prefer the dictionary term.
+
+        ### 8. Preserve Original Language
+        - If the input contains non-English text (e.g., Chinese, Japanese, Korean, Spanish), preserve it in its original language and script
+        - Do not translate, transliterate, or anglicize non-English content
+        - For multilingual input (code-switching between languages), preserve each language segment as-is
+        - Apply the same cleanup rules (filler removal, grammar fix, punctuation) within each language
+
+        ### 9. Chinese Language Rule
+        When the output contains Chinese text:
+        - Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+        - Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+        - Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
 
         ## Personal Dictionary Terms
 
@@ -94,6 +108,12 @@ public struct PromptManager: Sendable {
         3. Keep essential information
         4. Maintain clarity and readability
 
+        ## Chinese Language Rule
+        When the output contains Chinese text:
+        - Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+        - Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+        - Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
+
         ## Output
 
         Return only the shortened text, without any explanation or metadata.
@@ -115,6 +135,12 @@ public struct PromptManager: Sendable {
         3. Adjust vocabulary and phrasing appropriately
         4. Maintain natural language flow
 
+        ## Chinese Language Rule
+        When the output contains Chinese text:
+        - Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+        - Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+        - Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
+
         ## Output
 
         Return only the rewritten text, without any explanation or metadata.
@@ -131,6 +157,12 @@ public struct PromptManager: Sendable {
         2. Generate a relevant and appropriate reply
         3. Match the tone and style of the context
         4. Keep the response concise and to the point
+
+        ## Chinese Language Rule
+        When the output contains Chinese text:
+        - Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+        - Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+        - Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
 
         ## Output
 
@@ -152,6 +184,12 @@ public struct PromptManager: Sendable {
         2. Maintain the original tone and style
         3. Use natural language in the target language
         4. Preserve formatting when possible
+
+        ## Chinese Language Rule
+        When the output contains Chinese text:
+        - Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+        - Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+        - Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
 
         ## Output
 

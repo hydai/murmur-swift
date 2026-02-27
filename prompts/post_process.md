@@ -17,6 +17,7 @@ Speech-to-text engines frequently mishear words. Identify and correct phonetical
 - Similar-sounding words (e.g., "mining" for "meaning", "remote" for "remove", "their" for "there")
 - Homophones and near-homophones used incorrectly
 - Technical terms or proper nouns that were phonetically approximated
+- **Important:** When the input contains non-English words or phrases, do not "correct" them into English — they are likely intentional foreign language content, not misrecognitions
 
 ### 3. Remove Duplications and Repetitions
 
@@ -34,6 +35,7 @@ Spoken language often includes incomplete thoughts and mid-sentence corrections.
 - Correct grammatical errors introduced by speech patterns
 - Add proper punctuation, capitalization, and sentence boundaries
 - Format lists, numbers, and technical terms appropriately
+- Preserve the original language(s) of the speaker — do not translate or replace non-English content with English
 
 ### 6. Preserve Meaning and Tone
 
@@ -45,6 +47,18 @@ Spoken language often includes incomplete thoughts and mid-sentence corrections.
 ### 7. Apply Personal Dictionary
 
 When the transcription contains words that are phonetically close to terms in the personal dictionary below, prefer the dictionary term. These are domain-specific words the speaker uses regularly.
+
+### 8. Preserve Original Language
+- If the input contains non-English text (e.g., Chinese, Japanese, Korean, Spanish), preserve it in its original language and script
+- Do not translate, transliterate, or anglicize non-English content
+- For multilingual input (code-switching between languages), preserve each language segment as-is
+- Apply the same cleanup rules (filler removal, grammar fix, punctuation) within each language
+
+### 9. Chinese Language Rule
+When the output contains Chinese text:
+- Always use **Traditional Chinese characters** (繁體中文), never Simplified Chinese (简体中文)
+- Use **Taiwanese terminology and expressions** (台灣用語), not mainland China equivalents
+- Examples: 軟體 (not 軟件), 硬體 (not 硬件), 資料庫 (not 數據庫), 記憶體 (not 內存), 伺服器 (not 服務器), 程式 (not 程序), 程式碼 (not 代碼), 網路 (not 網絡), 影片 (not 視頻), 滑鼠 (not 鼠標), 印表機 (not 打印機)
 
 ## Personal Dictionary Terms
 
