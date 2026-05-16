@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (53 tests, 10 suites)
+# Run all tests (108 tests, 17 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -24,18 +24,23 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 - `MurmurKit/` — Swift Package (zero deps), all domain logic and implementations
   - `Sources/Audio/` — AudioCaptureService, AudioResampler, VadProcessor
-  - `Sources/Config/` — ConfigManager (JSON), HistoryStore
-  - `Sources/Domain/` — Protocols (SttProvider, LlmProcessor, OutputSink), domain types (AppConfig, AudioChunk, TranscriptionEvent, ProcessingTask, etc.)
-  - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptManager
+  - `Sources/Config/` — ConfigManager (JSON), HistoryStore, RelativeTimestampFormatter
+  - `Sources/Domain/` — Protocols (SttProvider, LlmProcessor, OutputSink), AppConfig, HotkeySpec, ProviderDefaults, Notifications, AudioChunk, TranscriptionEvent, ProcessingTask, etc.
+  - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptName, PromptSet, PromptStore, PromptManager, DefaultPromptTemplates
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
-  - `Sources/Pipeline/` — PipelineOrchestrator, VoiceCommandDetector
-  - `Sources/STT/` — AppleSttProvider, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
-  - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
-- `MurmurApp/` — Xcode project (imports MurmurKit)
-  - `Shared/` — MurmurApp.swift, ViewModels/, Views/
-  - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, OverlayView
-  - `Resources/` — Info.plist, entitlements
+  - `Sources/Pipeline/` — PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
+  - `Sources/STT/` — AppleSttProvider, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
+  - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, OutputTests, PipelineTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
+- `MurmurApp/` — Xcode project (depends on MurmurKit + Sparkle)
+  - `Shared/MurmurApp.swift` — @main + AppDelegate (tray, hotkey, overlay, updates, config observer)
+  - `Shared/ViewModels/` — Pipeline, Settings, History view models (@Observable @MainActor)
+  - `Shared/Views/` — TranscriptionView, HistoryView, WaveformIndicator
+  - `Shared/Views/Settings/` — NavigationSplitView shell + 8 section views (General/STT/LLM/Output/Hotkey/Dictionary/Prompts/About), DesignTokens, SettingsPrimitives, HotkeyCaptureField, AppleSttModelStatusView
+  - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, ThemeApplier, UpdateManager (Sparkle wrapper), OverlayView
+  - `Resources/` — Info.plist (SUFeedURL, SUEnableAutomaticChecks, SUPublicEDKey, LSUIElement, mic/accessibility/speech usage descriptions), entitlements
 - `prompts/` — LLM prompt templates (post_process, shorten, translate, change_tone, generate_reply)
+- `scripts/build-dmg.sh` — wraps create-dmg for the release workflow
+- `.githooks/pre-commit` — lineguard + swift build + swift test (activate via `git config core.hooksPath .githooks`)
 
 ## Key Conventions
 
@@ -68,14 +73,21 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-10 suites, 53 tests (Swift Testing framework):
+17 suites, 108 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
+- `RelativeTimestampFormatterTests` — Today/Yesterday/Nd-ago/absolute formatting
 - `AppConfigTests` — Default values, JSON round-trip, backward compatibility, HttpSttConfig
 - `PersonalDictionaryTests` — Entry CRUD, JSON round-trip, search by term/alias/description
 - `VoiceCommandDetectorTests` — Command detection for shorten/tone/translate/reply
+- `HotkeySpecTests` — modifier aliases, key code table, parse failures
+- `ProviderDefaultsTests` — locks default model strings against the Rust upstream
 - `HttpLlmTests` — OpenAI/Claude/Gemini response parsing, auth strategies, URL building
-- `PromptManagerTests` — Chinese Language Rule, Preserve Original Language in templates
+- `PromptManagerTests` — Chinese Language Rule, override behaviour, placeholder substitution
+- `PromptStoreTests` — disk persistence round-trips, reset semantics
 - `CustomSttProviderTests` — Construction with default/custom/nil-key parameters
 - `ElevenLabsLanguagesTests` — ISO 639-1→639-3 mapping, unique IDs, language count
+- `ElevenLabsProtocolTests` — URL builder, PCM-to-base64, response parsing for Scribe v2
+- `TranscriptionAccumulatorTests` — trailing-partial fallback (Apple STT case)
+- `CombinedOutput routing` — clipboard / keyboard / both wiring (serialized to share pasteboard)

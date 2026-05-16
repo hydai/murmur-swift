@@ -8,19 +8,50 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 
 ## Features
 
-- Real-time speech-to-text with multiple providers (Apple, ElevenLabs, OpenAI, Groq)
-- Apple STT: on-device speech recognition via macOS — no API key needed
-- LLM post-processing with multiple providers: Apple Foundation Models (on-device), OpenAI GPT, Claude, Gemini API, Custom OpenAI-compatible (Ollama, LM Studio, vLLM), or CLI tools (gemini-cli, copilot-cli)
-- Transcription history with search, copy, and persistent storage
-- Voice commands (shorten, translate, change tone, generate reply)
-- Personal dictionary for custom terms and aliases
-- macOS floating overlay window with glassmorphism UI
-- Audio cues for state feedback (recording start/stop, errors)
-- System tray integration with dynamic menu
-- Global hotkey support (configurable, default Ctrl+`)
-- Auto-opens settings on first launch for easy onboarding
-- Complete privacy — all data goes directly to your chosen providers
-- Comprehensive permissions handling for microphone and accessibility
+### Speech-to-Text
+- **Apple Speech** (on-device, no API key) via `SpeechTranscriber`
+- **ElevenLabs Scribe v2** realtime WebSocket (98 languages, ISO 639-3)
+- **OpenAI Whisper** REST batching (4 s chunks)
+- **Groq Whisper Turbo** REST batching (4 s chunks)
+- **Custom OpenAI-compatible** STT (Whisper.cpp, Faster Whisper, LocalAI…)
+
+### LLM Post-Processing
+- **Apple Foundation Models** (on-device, no API key)
+- **OpenAI API** (`gpt-4o-mini` default, overridable)
+- **Anthropic Claude API** (`claude-sonnet-4-20250514` default)
+- **Google Gemini API** (`gemini-2.0-flash` default)
+- **Custom OpenAI-compatible** endpoint (Ollama, LM Studio, vLLM, Azure OpenAI…)
+- **Gemini CLI** (`gemini-3-flash-preview` default)
+- **Copilot CLI** (`gpt-5-mini` default)
+- **Runtime-editable prompt templates** — five built-in prompts (post-process, shorten, change tone, translate, generate reply) with a Settings editor that saves overrides to `~/Library/Application Support/com.hydai.Murmur/prompts/`
+- **Voice commands** — `shorten:`, `make it formal:`, `make it casual:`, `reply to:`, `translate to {language}:`
+- **Personal dictionary** for custom terms with optional aliases and descriptions
+- Live LLM/output/dictionary hot-swap — change settings mid-session and the next recording (or its post-processing) uses the new value
+
+### Interface
+- macOS floating glassmorphism overlay with waveform indicator
+- Audio cues for state feedback (start, stop, error)
+- System tray with Start/Stop, Settings, History, Check for Updates, and Quit
+- Configurable global hotkey with live keystroke capture (default `Ctrl+\``)
+- Auto-opens Settings on first launch
+- **Redesigned Settings panel** with sidebar navigation, 8 sections (General, Speech-to-Text, LLM Processor, Output, Hotkey, Dictionary, Prompts, About) and reusable design tokens
+- Apple Speech model status + in-Settings download with progress bar
+
+### History
+- Transcription history with search (300 ms debounce)
+- Lazy pagination (50 entries per page)
+- Relative timestamps ("Today 14:30", "Yesterday 22:00", "3d ago", absolute date)
+- Cap at 500 entries with automatic pruning
+
+### Distribution & Updates
+- **Sparkle 2 auto-update** with EdDSA-signed appcast
+- DMG installer with optional code signing and notarization
+- Homebrew cask publish (`brew install hydai/murmur-swift/murmur-swift` once the tap is live)
+
+### Privacy
+- BYOK — your audio and transcripts go directly to the providers you configure
+- On-device alternatives for both STT (Apple Speech) and LLM (Apple Foundation Models)
+- No telemetry
 
 ## Project Structure
 
@@ -30,27 +61,27 @@ murmur-swift/
 │   ├── Package.swift
 │   ├── Sources/
 │   │   ├── Audio/                    # AudioCaptureService, AudioResampler, VadProcessor
-│   │   ├── Config/                   # ConfigManager, HistoryStore
-│   │   ├── Domain/                   # AppConfig, protocols, domain types
-│   │   ├── LLM/                      # AppleLlm, OpenAI, Claude, GeminiApi, CustomOpenAI, Gemini/Copilot CLI, HttpLlmClient, PromptManager
+│   │   ├── Config/                   # ConfigManager, HistoryStore, RelativeTimestampFormatter
+│   │   ├── Domain/                   # AppConfig, protocols, HotkeySpec, ProviderDefaults, Notifications
+│   │   ├── LLM/                      # All 7 processors + PromptName/PromptSet/PromptStore + HttpLlmClient
 │   │   ├── Output/                   # Clipboard, Keyboard, Combined output sinks
-│   │   ├── Pipeline/                 # PipelineOrchestrator, VoiceCommandDetector
-│   │   └── STT/                      # Apple/ElevenLabs/OpenAI/Groq providers, AudioChunker
-│   └── Tests/
-│       ├── AudioTests/               # AudioChunker WAV encoding tests
-│       ├── ConfigTests/              # ConfigManager + HistoryStore tests
-│       ├── DomainTests/              # AppConfig, VoiceCommandDetector, PersonalDictionary tests
-│       └── LLMTests/                 # HttpLlmClient response parsing + auth tests
+│   │   ├── Pipeline/                 # PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
+│   │   └── STT/                      # Apple/ElevenLabs/OpenAI/Groq/Custom providers, AppleSttModelManager
+│   └── Tests/                        # 108 tests across 17 suites (Swift Testing framework)
 ├── MurmurApp/                        # Xcode project
 │   ├── Shared/
-│   │   ├── MurmurApp.swift           # App entry point
+│   │   ├── MurmurApp.swift           # @main + AppDelegate (tray, hotkey, overlay, updates)
 │   │   ├── ViewModels/               # Pipeline, Settings, History view models
-│   │   └── Views/                    # SettingsPanel, HistoryView, TranscriptionView, Waveform
-│   ├── macOS/                        # OverlayWindow, SystemTray, GlobalHotkey, Permissions, Sound
-│   ├── iOS/                          # (future)
+│   │   └── Views/                    # TranscriptionView, HistoryView, WaveformIndicator,
+│   │       └── Settings/             # NavigationSplitView sidebar + 8 section views
+│   ├── macOS/                        # OverlayWindow, SystemTray, Hotkey, Permissions, Sound,
+│   │                                 #   ThemeApplier, UpdateManager (Sparkle)
 │   └── Resources/                    # Info.plist, entitlements
-├── Murmur.xcodeproj
-└── prompts/                          # LLM prompt templates (post_process, shorten, translate, etc.)
+├── Murmur.xcodeproj                  # Xcode project (Sparkle package, MurmurKit local)
+├── prompts/                          # Five default markdown templates (post_process, shorten, …)
+├── scripts/build-dmg.sh              # DMG packaging wrapper for create-dmg
+├── .github/workflows/                # CI (test + build) and release (DMG, sign, notarize, Sparkle, Homebrew)
+└── .githooks/pre-commit              # lineguard + swift build + swift test before each commit
 ```
 
 ## Development
@@ -59,6 +90,8 @@ murmur-swift/
 
 - Xcode 26+
 - macOS 26+
+- (optional) `lineguard` for pre-commit formatting checks
+- (optional) `create-dmg` for local DMG packaging
 
 ### Build & Run
 
@@ -66,17 +99,26 @@ murmur-swift/
 # Build the Swift package
 cd MurmurKit && swift build
 
-# Run all tests (41 tests, 7 suites)
+# Run all tests (108 tests, 17 suites)
 cd MurmurKit && swift test
 
 # Build the full app via Xcode
 xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -configuration Release build
 ```
 
+### Pre-commit hook
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ### Configuration
 
-User configuration is stored at:
-- macOS: `~/Library/Application Support/com.hydai.Murmur/config.json`
+User configuration is stored under `~/Library/Application Support/com.hydai.Murmur/`:
+
+- `config.json` — `AppConfig` (providers, API keys, hotkey, output mode, dictionary…)
+- `history.json` — transcription history (cap 500)
+- `prompts/{name}.md` — runtime prompt overrides (one file per template)
 
 ## Architecture
 
@@ -86,36 +128,42 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - **No FFI bridges for LLM** — Apple Foundation Models use `LanguageModelSession` directly
 - **Native concurrency** — Swift actors, `AsyncStream`, and structured concurrency replace Tokio channels
 - **`@Observable` macro** — SwiftUI reactivity without `ObservableObject`/`@Published` boilerplate
-- **Zero external dependencies** — MurmurKit has no third-party packages
+- **Single external dependency** — only Sparkle (auto-updater) on the app target; `MurmurKit` remains zero-dep
 
 ### Domain Types
 
 **STT (Speech-to-Text)**
-- `SttProvider` protocol: Unified interface for streaming STT
-- `TranscriptionEvent`: Partial/Committed/Error events
-- `AudioChunk`: PCM audio data wrapper
-- Apple STT: on-device speech recognition via `SpeechTranscriber`
+- `SttProvider` protocol — streaming STT abstraction
+- `TranscriptionEvent` — `.partial` / `.committed` / `.error`
+- `AudioChunk` — 16 kHz mono Int16 PCM with monotonic timestamp
+- `TranscriptionAccumulator` — combines partials/commits with trailing-partial fallback
+- `AppleSttModelManager` — status + progress-tracked downloads via `AssetInventory`
 
 **LLM Processing**
-- `LlmProcessor` protocol: Text post-processing via cloud APIs (OpenAI, Claude, Gemini), local servers (Ollama), CLI tools, or Apple Foundation Models
-- `ProcessingTask`: PostProcess/Shorten/ChangeTone/GenerateReply/Translate
-- `ProcessingOutput`: Processed text with metadata
+- `LlmProcessor` protocol — accepts a `ProcessingTask`, returns `ProcessingOutput`
+- `PromptName` / `PromptSet` / `PromptStore` — five named templates with disk-backed overrides
+- `PromptManager` — substitutes `{dictionary_terms}`, `{tone}`, `{language}` placeholders
+- `ProviderDefaults` — single source of truth for default models per provider
 
-**Configuration**
-- `AppConfig`: JSON-based configuration (API keys, providers, hotkeys, UI preferences)
-- `PersonalDictionary`: Custom terms and aliases
+**Configuration & State**
+- `AppConfig` — JSON-persisted, snake_case keys, backwards-compatible decoder
+- `PersonalDictionary` — entries (term + alias + description) plus legacy term list
+- `HotkeySpec` — parsed `"Cmd+Shift+Space"`-style accelerators with platform-neutral modifiers
+- `RelativeTimestampFormatter` — `"Today HH:mm"` / `"Yesterday HH:mm"` / `"Nd ago"` / absolute
 
 **Output**
-- `OutputSink` protocol: Abstract output destination
-- `OutputMode`: Clipboard/Keyboard/Both
+- `OutputSink` protocol
+- `CombinedOutput(mode:)` routes to clipboard, keyboard simulation, or both
+
+## Distribution
+
+See `DISTRIBUTION.md` for the release process: DMG packaging via `scripts/build-dmg.sh`, optional signing and notarization on the release workflow, Sparkle appcast generation, and the Homebrew cask publish flow.
 
 ## Known Limitations
 
-1. **LLM Provider Setup**: LLM post-processing supports multiple providers — cloud APIs (OpenAI, Claude, Gemini), local servers via Custom OpenAI-compatible endpoints (Ollama, LM Studio, vLLM), CLI tools (gemini-cli, copilot-cli), or Apple Foundation Models (on-device, no API key). If no LLM provider is configured, the app outputs raw transcriptions without post-processing.
-
-2. **API Keys Required**: You must provide your own API keys for cloud STT providers (ElevenLabs, OpenAI, or Groq). Apple STT is a free on-device alternative that requires no API key.
-
-3. **Apple STT**: Requires macOS 26+ for downloading speech recognition models on-device.
+1. **API Keys Required** for cloud STT providers (ElevenLabs, OpenAI, Groq). Apple Speech runs on-device with no key.
+2. **Apple Speech requires macOS 26+** so the on-device model can be downloaded.
+3. **Sparkle** is the only third-party dependency; if you build without configuring `SUPublicEDKey` in `Info.plist` the in-app updater shows a one-time configuration alert.
 
 ## License
 
