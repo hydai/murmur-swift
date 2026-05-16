@@ -54,6 +54,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             try? await viewModel.configManager.load()
             await applyRuntimePreferences()
+            openSettingsOnFirstLaunch()
+        }
+    }
+
+    /// Open the Settings window the first time the app is launched on this
+    /// machine so the user can configure providers/keys. Matches the Rust
+    /// v0.1.4 commit 0fa8a62 behavior.
+    private static let firstLaunchKey = "com.hydai.Murmur.didShowFirstLaunchSettings"
+
+    private func openSettingsOnFirstLaunch() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.firstLaunchKey) else { return }
+        defaults.set(true, forKey: Self.firstLaunchKey)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            openSettingsWindow()
         }
     }
 
