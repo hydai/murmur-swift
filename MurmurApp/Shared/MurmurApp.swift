@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let soundManager = SoundManager.shared
     private let historyViewModel = HistoryViewModel()
     private let permissionsManager = PermissionsManager()
+    private let updateManager = UpdateManager()
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
 
@@ -105,6 +106,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         trayManager.onOpenHistory = { [weak self] in
             self?.openHistoryWindow()
+        }
+
+        trayManager.onCheckForUpdates = { [weak self] in
+            self?.updateManager.checkForUpdates()
         }
 
         trayManager.onQuit = {

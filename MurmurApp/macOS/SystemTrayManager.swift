@@ -11,6 +11,7 @@ final class SystemTrayManager {
     var onToggleRecording: (() async -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenHistory: (() -> Void)?
+    var onCheckForUpdates: (() -> Void)?
     var onQuit: (() -> Void)?
 
     func setup() {
@@ -36,6 +37,12 @@ final class SystemTrayManager {
         let history = NSMenuItem(title: "History", action: #selector(openHistory), keyEquivalent: "")
         history.target = self
         menu.addItem(history)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        updates.target = self
+        menu.addItem(updates)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -73,6 +80,10 @@ final class SystemTrayManager {
 
     @objc private func openHistory() {
         onOpenHistory?()
+    }
+
+    @objc private func checkForUpdates() {
+        onCheckForUpdates?()
     }
 
     @objc private func quitApp() {

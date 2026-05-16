@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1000001 /* MurmurKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002 /* MurmurKit */; };
+		B1000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B1000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000001 /* MurmurKit in Frameworks */,
+				B1000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +79,7 @@
 			name = Murmur;
 			packageProductDependencies = (
 				A1000002 /* MurmurKit */,
+				B1000002 /* Sparkle */,
 			);
 			productName = Murmur;
 			productReference = A2000001 /* Murmur.app */;
@@ -103,6 +106,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A9000001 /* XCLocalSwiftPackageReference "MurmurKit" */,
+				B1000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A4000002 /* Products */;
@@ -337,10 +341,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		B1000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A1000002 /* MurmurKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MurmurKit;
+		};
+		B1000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B1000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 

@@ -4,5 +4,17 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Murmur needs microphone access for voice transcription.</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Murmur uses Accessibility to type the processed transcript into the focused app when Keyboard output mode is selected.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Murmur uses on-device Speech Recognition for transcription when the Apple Speech provider is selected.</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/hydai/murmur-swift/releases/latest/download/appcast.xml</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUPublicEDKey</key>
+	<string></string>
 </dict>
 </plist>
