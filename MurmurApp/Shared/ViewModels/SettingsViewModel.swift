@@ -158,25 +158,27 @@ final class SettingsViewModel {
 
     private func createLlmProcessor() -> any LlmProcessor {
         let modelOverride = llmModel.isEmpty ? nil : llmModel
+        func resolved(_ type: LlmProcessorType) -> String {
+            modelOverride ?? ProviderDefaults.defaultModel(for: type)
+        }
 
         switch llmProcessor {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor(model: modelOverride ?? "gemini-3-flash-preview")
+            return GeminiProcessor(model: resolved(.gemini))
         case .copilot:
-            return CopilotProcessor(model: modelOverride ?? "gpt-5-mini")
+            return CopilotProcessor(model: resolved(.copilot))
         case .openAILlm:
-            let key = openAIKey.isEmpty ? "" : openAIKey
-            return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
+            return OpenAILlmProcessor(apiKey: openAIKey, model: resolved(.openAILlm))
         case .claude:
-            return ClaudeLlmProcessor(apiKey: anthropicKey, model: modelOverride ?? "claude-sonnet-4-20250514")
+            return ClaudeLlmProcessor(apiKey: anthropicKey, model: resolved(.claude))
         case .geminiApi:
-            return GeminiApiProcessor(apiKey: googleAiKey, model: modelOverride ?? "gemini-2.0-flash")
+            return GeminiApiProcessor(apiKey: googleAiKey, model: resolved(.geminiApi))
         case .customOpenAI:
             return CustomOpenAIProcessor(
                 apiKey: customOpenAIKey,
-                model: modelOverride ?? "gpt-4o-mini",
+                model: resolved(.customOpenAI),
                 baseURL: customBaseUrl
             )
         }

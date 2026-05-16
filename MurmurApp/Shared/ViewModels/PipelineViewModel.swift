@@ -104,20 +104,19 @@ final class PipelineViewModel {
             let locale = config.appleSttLocale == "auto" ? nil : Locale(identifier: config.appleSttLocale)
             return AppleSttProvider(locale: locale)
         case .elevenLabs:
-            let key = config.apiKeys["elevenlabs"] ?? ""
+            let key = config.apiKeys[ProviderDefaults.ApiKey.elevenLabs] ?? ""
             let elevenLabsLang: String? = lang.flatMap { ElevenLabsLanguages.iso639_3(for: $0) ?? $0 }
             return ElevenLabsProvider(apiKey: key, languageCode: elevenLabsLang)
         case .openAI:
-            let key = config.apiKeys["openai"] ?? ""
+            let key = config.apiKeys[ProviderDefaults.ApiKey.openAI] ?? ""
             return OpenAIProvider(apiKey: key, language: lang)
         case .groq:
-            let key = config.apiKeys["groq"] ?? ""
+            let key = config.apiKeys[ProviderDefaults.ApiKey.groq] ?? ""
             return GroqProvider(apiKey: key, language: lang)
         case .customStt:
-            let key = config.apiKeys["custom_stt"]
-            let apiKey: String? = (key ?? "").isEmpty ? nil : key
+            let raw = config.apiKeys[ProviderDefaults.ApiKey.customStt] ?? ""
             return CustomSttProvider(
-                apiKey: apiKey,
+                apiKey: raw.isEmpty ? nil : raw,
                 model: config.httpSttConfig.customModel,
                 baseURL: config.httpSttConfig.customBaseUrl,
                 language: lang
@@ -127,28 +126,33 @@ final class PipelineViewModel {
 
     private func createLlmProcessor(_ config: AppConfig) -> any LlmProcessor {
         let modelOverride = config.llmModel.isEmpty ? nil : config.llmModel
+        func resolved(_ type: LlmProcessorType) -> String {
+            modelOverride ?? ProviderDefaults.defaultModel(for: type)
+        }
 
         switch config.llmProcessor {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor(model: modelOverride ?? "gemini-3-flash-preview")
+            return GeminiProcessor(model: resolved(.gemini))
         case .copilot:
-            return CopilotProcessor(model: modelOverride ?? "gpt-5-mini")
+            return CopilotProcessor(model: resolved(.copilot))
         case .openAILlm:
-            let key = config.apiKeys["openai_llm"] ?? config.apiKeys["openai"] ?? ""
-            return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
+            let key = config.apiKeys[ProviderDefaults.ApiKey.openAILlm]
+                ?? config.apiKeys[ProviderDefaults.ApiKey.openAI]
+                ?? ""
+            return OpenAILlmProcessor(apiKey: key, model: resolved(.openAILlm))
         case .claude:
-            let key = config.apiKeys["anthropic"] ?? ""
-            return ClaudeLlmProcessor(apiKey: key, model: modelOverride ?? "claude-sonnet-4-20250514")
+            let key = config.apiKeys[ProviderDefaults.ApiKey.anthropic] ?? ""
+            return ClaudeLlmProcessor(apiKey: key, model: resolved(.claude))
         case .geminiApi:
-            let key = config.apiKeys["google_ai"] ?? ""
-            return GeminiApiProcessor(apiKey: key, model: modelOverride ?? "gemini-2.0-flash")
+            let key = config.apiKeys[ProviderDefaults.ApiKey.googleAI] ?? ""
+            return GeminiApiProcessor(apiKey: key, model: resolved(.geminiApi))
         case .customOpenAI:
-            let key = config.apiKeys["custom_openai"] ?? ""
+            let key = config.apiKeys[ProviderDefaults.ApiKey.customOpenAI] ?? ""
             return CustomOpenAIProcessor(
                 apiKey: key,
-                model: modelOverride ?? "gpt-4o-mini",
+                model: resolved(.customOpenAI),
                 baseURL: config.httpLlmConfig.customBaseUrl
             )
         }
