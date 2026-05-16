@@ -19,8 +19,7 @@ public actor PipelineOrchestrator {
     private var levelTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
 
-    private var fullTranscription = ""
-    private var lastPartialText = ""
+    private var accumulator = TranscriptionAccumulator()
 
     private let eventContinuation: AsyncStream<PipelineEvent>.Continuation
     public nonisolated let events: AsyncStream<PipelineEvent>
@@ -71,8 +70,7 @@ public actor PipelineOrchestrator {
             throw MurmurError.invalidState("No STT provider configured")
         }
 
-        fullTranscription = ""
-        lastPartialText = ""
+        accumulator = TranscriptionAccumulator()
 
         // Start STT session
         try await sttProvider.startSession()
@@ -169,8 +167,7 @@ public actor PipelineOrchestrator {
         transcriptionTask = nil
         levelTask = nil
 
-        fullTranscription = ""
-        lastPartialText = ""
+        accumulator = TranscriptionAccumulator()
         transition(to: .idle)
     }
 
@@ -179,21 +176,13 @@ public actor PipelineOrchestrator {
     private func handleTranscriptionEvent(_ event: TranscriptionEvent) {
         switch event {
         case .partial(let text, _):
-            if state == .recording {
-                transition(to: .transcribing)
-            }
-            lastPartialText = text
+            if state == .recording { transition(to: .transcribing) }
+            accumulator.handle(event)
             emit(.partialTranscription(text))
 
         case .committed(let text, _):
-            if state == .recording {
-                transition(to: .transcribing)
-            }
-            if !fullTranscription.isEmpty {
-                fullTranscription += " "
-            }
-            fullTranscription += text
-            lastPartialText = ""
+            if state == .recording { transition(to: .transcribing) }
+            accumulator.handle(event)
             emit(.committedTranscription(text))
 
         case .error(let message):
@@ -202,16 +191,7 @@ public actor PipelineOrchestrator {
     }
 
     private func finishTranscription() async {
-        // Append any trailing partial text
-        if !lastPartialText.isEmpty {
-            if !fullTranscription.isEmpty {
-                fullTranscription += " "
-            }
-            fullTranscription += lastPartialText
-            lastPartialText = ""
-        }
-
-        let transcription = fullTranscription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let transcription = accumulator.finalize()
         guard !transcription.isEmpty else {
             transition(to: .idle)
             return
