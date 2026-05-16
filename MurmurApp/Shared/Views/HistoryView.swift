@@ -1,9 +1,10 @@
 import SwiftUI
 import MurmurKit
 
-/// Searchable transcription history with copy and delete.
+/// Searchable, paginated transcription history with copy and delete.
 struct HistoryView: View {
     @State var viewModel: HistoryViewModel
+    private let timestampFormatter = RelativeTimestampFormatter()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,8 +46,26 @@ struct HistoryView: View {
                 }
             } else {
                 List {
-                    ForEach(viewModel.filteredEntries) { entry in
-                        HistoryRow(entry: entry, viewModel: viewModel)
+                    ForEach(viewModel.pagedEntries) { entry in
+                        HistoryRow(
+                            entry: entry,
+                            viewModel: viewModel,
+                            timestampFormatter: timestampFormatter
+                        )
+                    }
+
+                    if viewModel.canLoadMore {
+                        Button {
+                            viewModel.loadMore()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Load \(min(viewModel.pageSize, viewModel.filteredEntries.count - viewModel.pagedEntries.count)) more")
+                                    .font(.caption)
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
                 .listStyle(.plain)
@@ -56,7 +75,7 @@ struct HistoryView: View {
             if !viewModel.entries.isEmpty {
                 Divider()
                 HStack {
-                    Text("\(viewModel.entries.count) entries")
+                    Text("\(viewModel.pagedEntries.count) of \(viewModel.filteredEntries.count) entries")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -81,13 +100,12 @@ struct HistoryView: View {
 private struct HistoryRow: View {
     let entry: HistoryEntry
     let viewModel: HistoryViewModel
+    let timestampFormatter: RelativeTimestampFormatter
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header with timestamp and command
             HStack {
-                Text(entry.timestamp, style: .date)
-                Text(entry.timestamp, style: .time)
+                Text(timestampFormatter.string(from: entry.timestamp))
 
                 if let command = entry.command {
                     Text(command)
@@ -107,11 +125,9 @@ private struct HistoryRow: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-            // Processed text
             Text(entry.processedText)
                 .lineLimit(3)
 
-            // Actions
             HStack(spacing: 12) {
                 Button {
                     viewModel.copyToClipboard(entry.processedText)
