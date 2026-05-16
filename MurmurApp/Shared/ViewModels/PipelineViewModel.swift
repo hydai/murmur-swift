@@ -92,6 +92,19 @@ final class PipelineViewModel {
         await orchestrator.stop()
     }
 
+    /// Reapply LLM, output mode, and dictionary terms from the current config
+    /// to the running orchestrator. STT is intentionally not swapped because
+    /// it is bound to the active session; STT changes take effect on the next
+    /// recording. Called by AppDelegate when `.murmurConfigDidChange` fires.
+    func updateRuntimeConfig() async {
+        let config = await configManager.getConfig()
+        let llm = createLlmProcessor(config)
+        await orchestrator.setLlmProcessor(llm)
+        let output = CombinedOutput(mode: config.outputMode)
+        await orchestrator.setOutputSink(output)
+        await orchestrator.setDictionaryTerms(config.personalDictionary.allTermStrings)
+    }
+
     // MARK: - Provider factories
 
     private func createSttProvider(_ config: AppConfig) -> any SttProvider {

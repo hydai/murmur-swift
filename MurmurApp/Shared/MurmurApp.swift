@@ -63,14 +63,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Read the current config and apply hotkey, overlay opacity, and theme.
-    /// Called at launch and on every `.murmurConfigDidChange`.
+    /// Read the current config and apply runtime-driven prefs: hotkey,
+    /// overlay opacity, theme, plus the pipeline orchestrator's hot-swappable
+    /// LLM processor + output mode + dictionary terms. Called at launch and
+    /// on every `.murmurConfigDidChange`.
     private func applyRuntimePreferences() async {
         let config = await viewModel.configManager.getConfig()
         let spec = HotkeySpec.parse(config.hotkey) ?? GlobalHotkeyManager.defaultSpec
         hotkeyManager.reregister(spec: spec)
         overlayWindow.setOpacity(CGFloat(config.uiPreferences.opacity))
         ThemeApplier.apply(config.uiPreferences.theme)
+        await viewModel.updateRuntimeConfig()
     }
 
     private func setupTray() {
