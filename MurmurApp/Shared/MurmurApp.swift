@@ -29,14 +29,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
 
+    private var configObserver: NSObjectProtocol?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set as accessory app (no dock icon, tray only)
         NSApplication.shared.setActivationPolicy(.accessory)
 
         setupTray()
-        setupHotkey()
+        installHotkeyCallback()
         observePipelineState()
         checkPermissions()
+
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .murmurConfigDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.applyRuntimePreferences()
+            }
+        }
+
+        // Load config, then apply runtime-driven prefs (hotkey, opacity, theme).
+        Task { @MainActor in
+            try? await viewModel.configManager.load()
+            await applyRuntimePreferences()
+        }
+    }
+
+    deinit {
+        if let configObserver {
+            NotificationCenter.default.removeObserver(configObserver)
+        }
+    }
+
+    /// Read the current config and apply hotkey, overlay opacity, and theme.
+    /// Called at launch and on every `.murmurConfigDidChange`.
+    private func applyRuntimePreferences() async {
+        let config = await viewModel.configManager.getConfig()
+        let spec = HotkeySpec.parse(config.hotkey) ?? GlobalHotkeyManager.defaultSpec
+        hotkeyManager.reregister(spec: spec)
+        overlayWindow.setOpacity(CGFloat(config.uiPreferences.opacity))
+        ThemeApplier.apply(config.uiPreferences.theme)
     }
 
     private func setupTray() {
@@ -59,13 +93,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func setupHotkey() {
+    /// Install the hotkey callback only. The spec is applied later by
+    /// `applyRuntimePreferences` once the config is loaded.
+    private func installHotkeyCallback() {
         hotkeyManager.onHotkeyPressed = { [weak self] in
             Task { @MainActor in
                 await self?.toggleRecording()
             }
         }
-        hotkeyManager.start()
+        hotkeyManager.start(spec: GlobalHotkeyManager.defaultSpec)
     }
 
     private func toggleRecording() async {

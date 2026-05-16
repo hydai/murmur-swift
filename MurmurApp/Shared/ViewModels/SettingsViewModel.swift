@@ -124,6 +124,7 @@ final class SettingsViewModel {
 
         do {
             try await configManager.setConfig(newConfig)
+            NotificationCenter.default.post(name: .murmurConfigDidChange, object: nil)
         } catch {
             saveError = error.localizedDescription
         }

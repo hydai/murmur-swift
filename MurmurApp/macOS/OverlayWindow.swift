@@ -7,10 +7,12 @@ import SwiftUI
 @MainActor
 final class OverlayWindow {
     private var panel: NSPanel?
+    private var opacity: CGFloat = 1.0
 
     /// Show the overlay panel with the given SwiftUI view.
     func show<V: View>(_ view: V) {
         if let panel {
+            panel.alphaValue = opacity
             panel.orderFront(nil)
             return
         }
@@ -42,6 +44,7 @@ final class OverlayWindow {
             panel.setFrameOrigin(NSPoint(x: x, y: y))
         }
 
+        panel.alphaValue = opacity
         panel.orderFront(nil)
         self.panel = panel
     }
@@ -57,8 +60,9 @@ final class OverlayWindow {
         panel = nil
     }
 
-    /// Update the panel's opacity.
+    /// Update the panel's opacity. Persists across show/hide cycles.
     func setOpacity(_ opacity: CGFloat) {
+        self.opacity = opacity
         panel?.alphaValue = opacity
     }
 
