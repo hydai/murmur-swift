@@ -14,7 +14,7 @@ public actor GroqProvider: SttProvider {
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
 
-    public init(apiKey: String, model: String = "whisper-large-v3", language: String? = nil) {
+    public init(apiKey: String, model: String = "whisper-large-v3-turbo", language: String? = nil) {
         self.apiKey = apiKey
         self.model = model
         self.language = language

@@ -132,9 +132,9 @@ final class PipelineViewModel {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor(model: modelOverride ?? "gemini-2.5-flash")
+            return GeminiProcessor(model: modelOverride ?? "gemini-3-flash-preview")
         case .copilot:
-            return CopilotProcessor()
+            return CopilotProcessor(model: modelOverride ?? "gpt-5-mini")
         case .openAILlm:
             let key = config.apiKeys["openai_llm"] ?? config.apiKeys["openai"] ?? ""
             return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
@@ -148,7 +148,7 @@ final class PipelineViewModel {
             let key = config.apiKeys["custom_openai"] ?? ""
             return CustomOpenAIProcessor(
                 apiKey: key,
-                model: modelOverride ?? "llama3",
+                model: modelOverride ?? "gpt-4o-mini",
                 baseURL: config.httpLlmConfig.customBaseUrl
             )
         }

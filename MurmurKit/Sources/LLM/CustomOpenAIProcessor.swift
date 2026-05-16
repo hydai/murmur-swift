@@ -10,7 +10,7 @@ public actor CustomOpenAIProcessor: LlmProcessor {
 
     public init(
         apiKey: String = "",
-        model: String = "llama3",
+        model: String = "gpt-4o-mini",
         baseURL: String = "http://localhost:11434/v1",
         timeoutSeconds: TimeInterval = 120
     ) {

@@ -162,9 +162,9 @@ final class SettingsViewModel {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
-            return GeminiProcessor(model: modelOverride ?? "gemini-2.5-flash")
+            return GeminiProcessor(model: modelOverride ?? "gemini-3-flash-preview")
         case .copilot:
-            return CopilotProcessor()
+            return CopilotProcessor(model: modelOverride ?? "gpt-5-mini")
         case .openAILlm:
             let key = openAIKey.isEmpty ? "" : openAIKey
             return OpenAILlmProcessor(apiKey: key, model: modelOverride ?? "gpt-4o-mini")
@@ -175,7 +175,7 @@ final class SettingsViewModel {
         case .customOpenAI:
             return CustomOpenAIProcessor(
                 apiKey: customOpenAIKey,
-                model: modelOverride ?? "llama3",
+                model: modelOverride ?? "gpt-4o-mini",
                 baseURL: customBaseUrl
             )
         }

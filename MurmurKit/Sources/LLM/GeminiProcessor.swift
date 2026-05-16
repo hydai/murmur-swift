@@ -6,7 +6,7 @@ public actor GeminiProcessor: LlmProcessor {
     private let promptManager = PromptManager()
     private let model: String
 
-    public init(model: String = "gemini-2.5-flash", timeoutSeconds: TimeInterval = 30) {
+    public init(model: String = "gemini-3-flash-preview", timeoutSeconds: TimeInterval = 30) {
         self.model = model
         self.executor = CliExecutor(timeoutSeconds: timeoutSeconds)
     }

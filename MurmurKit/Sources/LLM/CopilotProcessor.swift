@@ -4,8 +4,10 @@ import Foundation
 public actor CopilotProcessor: LlmProcessor {
     private let executor: CliExecutor
     private let promptManager = PromptManager()
+    private let model: String
 
-    public init(timeoutSeconds: TimeInterval = 30) {
+    public init(model: String = "gpt-5-mini", timeoutSeconds: TimeInterval = 30) {
+        self.model = model
         self.executor = CliExecutor(timeoutSeconds: timeoutSeconds)
     }
 
@@ -16,7 +18,7 @@ public actor CopilotProcessor: LlmProcessor {
 
         let output = try await executor.execute(
             program: "copilot",
-            arguments: ["--prompt", fullPrompt]
+            arguments: ["--prompt", fullPrompt, "--model", model]
         )
 
         guard output.exitCode == 0 else {
