@@ -40,7 +40,7 @@ jobs:
         continue-on-error: true
 
   build-and-release:
-    name: Build & Release
+    name: Build, Sign, Notarize & Release
     if: >-
       github.event_name == 'push'
       && startsWith(github.event.head_commit.message, 'chore: prepare release')
@@ -52,23 +52,93 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build Murmur.app
-        run: |
-          xcodebuild \
-            -project Murmur.xcodeproj \
-            -scheme Murmur \
-            -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+      - name: Resolve package dependencies
+        run: xcodebuild -resolvePackageDependencies -project Murmur.xcodeproj -scheme Murmur
 
-      - name: Package as ZIP
+      - name: Import signing certificate
+        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         run: |
-          mkdir -p artifacts
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          rm certificate.p12
+
+      - name: Build Murmur.app
+        env:
+          SIGN_ID: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          if [[ -n "$SIGN_ID" ]]; then
+            xcodebuild \
+              -project Murmur.xcodeproj \
+              -scheme Murmur \
+              -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="$SIGN_ID" \
+              CODE_SIGN_STYLE=Manual \
+              OTHER_CODE_SIGN_FLAGS='--options=runtime' \
+              build
+          else
+            xcodebuild \
+              -project Murmur.xcodeproj \
+              -scheme Murmur \
+              -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="-" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              build
+          fi
+
+      - name: Locate built app
+        id: app
+        run: |
           APP_PATH=$(find build -name "Murmur.app" -type d | head -1)
-          ditto -c -k --keepParent "$APP_PATH" artifacts/Murmur-macOS.zip
+          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Package DMG
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          brew install create-dmg
+          mkdir -p artifacts
+          scripts/build-dmg.sh "$APP_PATH" artifacts/Murmur-macOS.dmg
+
+      - name: Notarize DMG
+        if: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID != '' }}
+        env:
+          APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+          TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
+        run: |
+          xcrun notarytool submit artifacts/Murmur-macOS.dmg \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --password "$APP_PASSWORD" \
+            --wait
+          xcrun stapler staple artifacts/Murmur-macOS.dmg
+
+      - name: Sign update with Sparkle
+        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          SPARKLE_BIN=$(find ~/Library/Developer/Xcode/DerivedData -name sign_update -type f | head -1)
+          if [[ -z "$SPARKLE_BIN" ]]; then
+            echo "warning: sign_update binary not found in DerivedData; skipping signature"
+            exit 0
+          fi
+          KEY_FILE=$(mktemp)
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
+          SIG=$("$SPARKLE_BIN" -f "$KEY_FILE" artifacts/Murmur-macOS.dmg)
+          rm "$KEY_FILE"
+          echo "$SIG" > artifacts/sparkle-signature.txt
+          echo "Sparkle signature: $SIG"
 
       - name: Install knope
         run: brew install knope-dev/tap/knope
@@ -77,3 +147,41 @@ jobs:
         run: knope release --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew tap
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION=$(grep -E 'MARKETING_VERSION = ' Murmur.xcodeproj/project.pbxproj \
+            | head -1 | sed 's/.*= \(.*\);/\1/')
+          SHA=$(shasum -a 256 artifacts/Murmur-macOS.dmg | awk '{print $1}')
+          git clone "https://x-access-token:$HOMEBREW_TAP_TOKEN@github.com/hydai/homebrew-murmur-swift.git" tap
+          mkdir -p tap/Casks
+          cat > tap/Casks/murmur-swift.rb <<EOF
+          cask "murmur-swift" do
+            version "$VERSION"
+            sha256 "$SHA"
+
+            url "https://github.com/hydai/murmur-swift/releases/download/v#{version}/Murmur-macOS.dmg"
+            name "Murmur"
+            desc "Privacy-first BYOK voice typing for macOS"
+            homepage "https://github.com/hydai/murmur-swift"
+
+            auto_updates true
+
+            app "Murmur.app"
+
+            zap trash: [
+              "~/Library/Application Support/com.hydai.Murmur",
+              "~/Library/Preferences/com.hydai.Murmur.plist",
+              "~/Library/Caches/com.hydai.Murmur",
+            ]
+          end
+          EOF
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/murmur-swift.rb
+          git commit -m "murmur-swift $VERSION" || echo "no changes"
+          git push origin master

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# Run formatters + tests before each commit so CI doesn't have to fail
+# the same checks. Activate via:
+#     git config core.hooksPath .githooks
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+STAGED_SWIFT=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.swift$' || true)
+STAGED_TEXT=$(git diff --cached --name-only --diff-filter=ACM || true)
+
+# Run lineguard on every staged text file (it's defensive about which files
+# it touches). Silent success, noisy failure.
+if command -v lineguard >/dev/null 2>&1 && [[ -n "$STAGED_TEXT" ]]; then
+  echo "lineguard: checking $(echo "$STAGED_TEXT" | wc -l | tr -d ' ') file(s)"
+  if ! echo "$STAGED_TEXT" | xargs lineguard; then
+    echo "pre-commit: lineguard failed. Fix the issues or run lineguard --fix locally."
+    exit 1
+  fi
+fi
+
+if [[ -n "$STAGED_SWIFT" ]]; then
+  # Build (release per CLAUDE.md guidance) so type-check errors surface here
+  # instead of in CI.
+  echo "swift build (MurmurKit, release)…"
+  ( cd MurmurKit && swift build -c release ) >/tmp/murmur-swift-prebuild.log 2>&1 \
+    || { tail -50 /tmp/murmur-swift-prebuild.log; exit 1; }
+
+  echo "swift test (MurmurKit)…"
+  ( cd MurmurKit && swift test ) >/tmp/murmur-swift-pretest.log 2>&1 \
+    || { tail -100 /tmp/murmur-swift-pretest.log; exit 1; }
+fi
+
+exit 0

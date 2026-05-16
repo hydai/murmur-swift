@@ -5,8 +5,8 @@ versioned_files = [
 changelog = "CHANGELOG.md"
 
 [[package.assets]]
-path = "artifacts/Murmur-macOS.zip"
-name = "Murmur-macOS.zip"
+path = "artifacts/Murmur-macOS.dmg"
+name = "Murmur-macOS.dmg"
 
 [[workflows]]
 name = "prepare-release"

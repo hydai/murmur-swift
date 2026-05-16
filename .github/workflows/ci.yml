@@ -16,6 +16,20 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
+
+      - name: Cache SwiftPM build artefacts
+        uses: actions/cache@v4
+        with:
+          path: MurmurKit/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('MurmurKit/Package.swift', 'MurmurKit/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: swift-format lint
+        run: swift format lint --recursive Sources Tests
+        working-directory: MurmurKit
+        continue-on-error: true
+
       - name: Run tests
         run: swift test
         working-directory: MurmurKit
@@ -26,6 +40,20 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v6
+
+      - name: Cache Xcode artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            ~/Library/Caches/org.swift.swiftpm
+          key: xcode-${{ runner.os }}-${{ hashFiles('Murmur.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            xcode-${{ runner.os }}-
+
+      - name: Resolve package dependencies
+        run: xcodebuild -resolvePackageDependencies -project Murmur.xcodeproj -scheme Murmur
+
       - name: Build Murmur.app
         run: |
           xcodebuild \
