@@ -60,6 +60,11 @@ final class SettingsViewModel {
     var draftPromptContent: String = ""
     var promptSaveError: String?
 
+    // Apple STT model status
+    var appleSttModelStatus: AppleSttModelStatus = .notInstalled
+    var appleSttDownloadError: String?
+    private let appleSttModelManager = AppleSttModelManager()
+
     // MARK: - Internal
     private let configManager: ConfigManager
     /// Directory used for prompt overrides. Defaults to the same parent dir
@@ -284,6 +289,37 @@ final class SettingsViewModel {
     /// Settings UI uses this to warn the user before saving.
     var missingPlaceholders: [String] {
         selectedPrompt.requiredPlaceholders.filter { !draftPromptContent.contains($0) }
+    }
+
+    // MARK: - Apple STT model status
+
+    /// Refresh `appleSttModelStatus` from disk for the current locale.
+    func refreshAppleSttModelStatus() async {
+        let locale = resolvedAppleSttLocale()
+        appleSttModelStatus = await appleSttModelManager.status(for: locale)
+    }
+
+    /// Trigger an on-disk download for the current locale. Updates
+    /// `appleSttModelStatus` to `.downloading(_)` while running.
+    func downloadAppleSttModel() async {
+        let locale = resolvedAppleSttLocale()
+        appleSttDownloadError = nil
+        appleSttModelStatus = .downloading(0)
+        do {
+            try await appleSttModelManager.download(for: locale) { [weak self] fraction in
+                Task { @MainActor in
+                    self?.appleSttModelStatus = .downloading(fraction)
+                }
+            }
+            appleSttModelStatus = .installed
+        } catch {
+            appleSttDownloadError = error.localizedDescription
+            appleSttModelStatus = .error(error.localizedDescription)
+        }
+    }
+
+    private func resolvedAppleSttLocale() -> Locale {
+        appleSttLocale == "auto" ? Locale.current : Locale(identifier: appleSttLocale)
     }
 
     /// Which API key fields to show based on selected STT provider.

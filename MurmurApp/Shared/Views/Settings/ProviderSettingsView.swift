@@ -62,6 +62,8 @@ struct ProviderSettingsView: View {
             SettingsInput(label: "Locale", placeholder: "auto", text: $viewModel.appleSttLocale)
             Text("Use \"auto\" for the system locale, or codes like \"en-US\", \"zh-TW\", \"ja-JP\".")
                 .font(.caption).foregroundStyle(.secondary)
+            Divider().padding(.vertical, Spacing.xs)
+            AppleSttModelStatusView(viewModel: viewModel)
         case .elevenLabs:
             SettingsInput(label: "ElevenLabs API key", placeholder: "xi-...", text: $viewModel.elevenLabsKey, isSecure: true)
         case .openAI:
