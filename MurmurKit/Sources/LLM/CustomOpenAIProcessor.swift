@@ -6,18 +6,20 @@ public actor CustomOpenAIProcessor: LlmProcessor {
     private let model: String
     private let baseURL: String
     private let client: HttpLlmClient
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
 
     public init(
         apiKey: String = "",
         model: String = "gpt-4o-mini",
         baseURL: String = "http://localhost:11434/v1",
-        timeoutSeconds: TimeInterval = 120
+        timeoutSeconds: TimeInterval = 120,
+        promptManager: PromptManager = PromptManager()
     ) {
         self.apiKey = apiKey
         self.model = model
         self.baseURL = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
         self.client = HttpLlmClient(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

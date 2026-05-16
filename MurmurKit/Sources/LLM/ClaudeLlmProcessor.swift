@@ -5,12 +5,18 @@ public actor ClaudeLlmProcessor: LlmProcessor {
     private let apiKey: String
     private let model: String
     private let client: HttpLlmClient
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
 
-    public init(apiKey: String, model: String = "claude-sonnet-4-20250514", timeoutSeconds: TimeInterval = 60) {
+    public init(
+        apiKey: String,
+        model: String = "claude-sonnet-4-20250514",
+        timeoutSeconds: TimeInterval = 60,
+        promptManager: PromptManager = PromptManager()
+    ) {
         self.apiKey = apiKey
         self.model = model
         self.client = HttpLlmClient(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

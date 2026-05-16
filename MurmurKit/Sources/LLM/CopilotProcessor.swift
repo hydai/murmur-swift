@@ -3,12 +3,17 @@ import Foundation
 /// LLM processor using the GitHub Copilot CLI via subprocess. macOS only.
 public actor CopilotProcessor: LlmProcessor {
     private let executor: CliExecutor
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
     private let model: String
 
-    public init(model: String = "gpt-5-mini", timeoutSeconds: TimeInterval = 30) {
+    public init(
+        model: String = "gpt-5-mini",
+        timeoutSeconds: TimeInterval = 30,
+        promptManager: PromptManager = PromptManager()
+    ) {
         self.model = model
         self.executor = CliExecutor(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

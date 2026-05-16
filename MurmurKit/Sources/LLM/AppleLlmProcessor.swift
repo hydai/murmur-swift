@@ -6,9 +6,11 @@ import FoundationModels
 /// Replaces the FFI bridge pattern: no @_cdecl, no Unmanaged pointers,
 /// no C callbacks. Just `await session.respond(to:)`.
 public actor AppleLlmProcessor: LlmProcessor {
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
 
-    public init() {}
+    public init(promptManager: PromptManager = PromptManager()) {
+        self.promptManager = promptManager
+    }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {
         guard SystemLanguageModel.default.isAvailable else {

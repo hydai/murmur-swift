@@ -5,12 +5,18 @@ public actor GeminiApiProcessor: LlmProcessor {
     private let apiKey: String
     private let model: String
     private let client: HttpLlmClient
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
 
-    public init(apiKey: String, model: String = "gemini-2.0-flash", timeoutSeconds: TimeInterval = 30) {
+    public init(
+        apiKey: String,
+        model: String = "gemini-2.0-flash",
+        timeoutSeconds: TimeInterval = 30,
+        promptManager: PromptManager = PromptManager()
+    ) {
         self.apiKey = apiKey
         self.model = model
         self.client = HttpLlmClient(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

@@ -3,12 +3,17 @@ import Foundation
 /// LLM processor using the Gemini CLI tool via subprocess. macOS only.
 public actor GeminiProcessor: LlmProcessor {
     private let executor: CliExecutor
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
     private let model: String
 
-    public init(model: String = "gemini-3-flash-preview", timeoutSeconds: TimeInterval = 30) {
+    public init(
+        model: String = "gemini-3-flash-preview",
+        timeoutSeconds: TimeInterval = 30,
+        promptManager: PromptManager = PromptManager()
+    ) {
         self.model = model
         self.executor = CliExecutor(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

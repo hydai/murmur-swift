@@ -143,30 +143,36 @@ final class PipelineViewModel {
             modelOverride ?? ProviderDefaults.defaultModel(for: type)
         }
 
+        // Load any prompt overrides so live edits flow through to the next
+        // recording. Missing files / IO errors silently fall back to defaults.
+        let promptSet = (try? PromptStore.loadAll(configDir: ConfigManager.defaultDirectory)) ?? PromptSet()
+        let promptManager = PromptManager(set: promptSet)
+
         switch config.llmProcessor {
         case .appleLlm:
-            return AppleLlmProcessor()
+            return AppleLlmProcessor(promptManager: promptManager)
         case .gemini:
-            return GeminiProcessor(model: resolved(.gemini))
+            return GeminiProcessor(model: resolved(.gemini), promptManager: promptManager)
         case .copilot:
-            return CopilotProcessor(model: resolved(.copilot))
+            return CopilotProcessor(model: resolved(.copilot), promptManager: promptManager)
         case .openAILlm:
             let key = config.apiKeys[ProviderDefaults.ApiKey.openAILlm]
                 ?? config.apiKeys[ProviderDefaults.ApiKey.openAI]
                 ?? ""
-            return OpenAILlmProcessor(apiKey: key, model: resolved(.openAILlm))
+            return OpenAILlmProcessor(apiKey: key, model: resolved(.openAILlm), promptManager: promptManager)
         case .claude:
             let key = config.apiKeys[ProviderDefaults.ApiKey.anthropic] ?? ""
-            return ClaudeLlmProcessor(apiKey: key, model: resolved(.claude))
+            return ClaudeLlmProcessor(apiKey: key, model: resolved(.claude), promptManager: promptManager)
         case .geminiApi:
             let key = config.apiKeys[ProviderDefaults.ApiKey.googleAI] ?? ""
-            return GeminiApiProcessor(apiKey: key, model: resolved(.geminiApi))
+            return GeminiApiProcessor(apiKey: key, model: resolved(.geminiApi), promptManager: promptManager)
         case .customOpenAI:
             let key = config.apiKeys[ProviderDefaults.ApiKey.customOpenAI] ?? ""
             return CustomOpenAIProcessor(
                 apiKey: key,
                 model: resolved(.customOpenAI),
-                baseURL: config.httpLlmConfig.customBaseUrl
+                baseURL: config.httpLlmConfig.customBaseUrl,
+                promptManager: promptManager
             )
         }
     }

@@ -201,7 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             viewModel: SettingsViewModel(configManager: viewModel.configManager)
         )
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 600),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false

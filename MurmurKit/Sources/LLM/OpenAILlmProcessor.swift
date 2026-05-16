@@ -5,12 +5,18 @@ public actor OpenAILlmProcessor: LlmProcessor {
     private let apiKey: String
     private let model: String
     private let client: HttpLlmClient
-    private let promptManager = PromptManager()
+    private let promptManager: PromptManager
 
-    public init(apiKey: String, model: String = "gpt-4o-mini", timeoutSeconds: TimeInterval = 30) {
+    public init(
+        apiKey: String,
+        model: String = "gpt-4o-mini",
+        timeoutSeconds: TimeInterval = 30,
+        promptManager: PromptManager = PromptManager()
+    ) {
         self.apiKey = apiKey
         self.model = model
         self.client = HttpLlmClient(timeoutSeconds: timeoutSeconds)
+        self.promptManager = promptManager
     }
 
     public func process(_ task: ProcessingTask) async throws -> ProcessingOutput {

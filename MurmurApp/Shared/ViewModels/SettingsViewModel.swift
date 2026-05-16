@@ -54,11 +54,24 @@ final class SettingsViewModel {
     var isSaving: Bool = false
     var llmHealthStatus: String?
 
+    // Prompts editor state
+    var promptSet: PromptSet = PromptSet()
+    var selectedPrompt: PromptName = .postProcess
+    var draftPromptContent: String = ""
+    var promptSaveError: String?
+
     // MARK: - Internal
     private let configManager: ConfigManager
+    /// Directory used for prompt overrides. Defaults to the same parent dir
+    /// that ConfigManager writes config.json into.
+    private let promptsDirectory: URL
 
-    init(configManager: ConfigManager) {
+    init(
+        configManager: ConfigManager,
+        promptsDirectory: URL = ConfigManager.defaultDirectory
+    ) {
         self.configManager = configManager
+        self.promptsDirectory = promptsDirectory
     }
 
     // MARK: - Load
@@ -219,6 +232,58 @@ final class SettingsViewModel {
         }
         let dict = PersonalDictionary(entries: dictionaryEntries)
         return dict.search(dictionarySearch)
+    }
+
+    // MARK: - Prompts
+
+    /// Load any on-disk prompt overrides into `promptSet` and seed the
+    /// editor draft with the current value of `selectedPrompt`.
+    func loadPrompts() async {
+        do {
+            promptSet = try PromptStore.loadAll(configDir: promptsDirectory)
+        } catch {
+            promptSaveError = error.localizedDescription
+        }
+        draftPromptContent = promptSet.get(selectedPrompt)
+    }
+
+    /// Select a different template and refresh the editor draft.
+    func selectPrompt(_ name: PromptName) {
+        selectedPrompt = name
+        draftPromptContent = promptSet.get(name)
+        promptSaveError = nil
+    }
+
+    /// Persist the current draft as an override for `selectedPrompt`.
+    func savePrompt() async {
+        do {
+            try PromptStore.save(selectedPrompt, content: draftPromptContent, in: promptsDirectory)
+            promptSet.setOverride(selectedPrompt, content: draftPromptContent)
+            promptSaveError = nil
+            NotificationCenter.default.post(name: .murmurConfigDidChange, object: nil)
+        } catch {
+            promptSaveError = error.localizedDescription
+        }
+    }
+
+    /// Remove the override and restore the compile-time default for
+    /// `selectedPrompt`. Also rewinds the editor draft.
+    func resetPrompt() async {
+        do {
+            try PromptStore.reset(selectedPrompt, in: promptsDirectory)
+            promptSet.clearOverride(selectedPrompt)
+            draftPromptContent = selectedPrompt.defaultTemplate
+            promptSaveError = nil
+            NotificationCenter.default.post(name: .murmurConfigDidChange, object: nil)
+        } catch {
+            promptSaveError = error.localizedDescription
+        }
+    }
+
+    /// Required placeholders that are missing from the current draft. The
+    /// Settings UI uses this to warn the user before saving.
+    var missingPlaceholders: [String] {
+        selectedPrompt.requiredPlaceholders.filter { !draftPromptContent.contains($0) }
     }
 
     /// Which API key fields to show based on selected STT provider.
