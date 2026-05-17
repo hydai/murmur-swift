@@ -10,7 +10,6 @@ import Sparkle
 @MainActor
 final class UpdateManager: NSObject {
     private let controller: SPUStandardUpdaterController
-    private var observer: NSObjectProtocol?
 
     override init() {
         self.controller = SPUStandardUpdaterController(
@@ -20,17 +19,17 @@ final class UpdateManager: NSObject {
         )
         super.init()
 
-        observer = NotificationCenter.default.addObserver(
+        // UpdateManager lives for the app's lifetime; the observer is torn
+        // down at process exit, so we don't need to remove it in deinit
+        // (which would require accessing MainActor state from a nonisolated
+        // context under Swift 6 strict concurrency).
+        _ = NotificationCenter.default.addObserver(
             forName: .murmurCheckForUpdates,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.checkForUpdates() }
         }
-    }
-
-    deinit {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 
     func checkForUpdates() {
@@ -48,28 +47,26 @@ final class UpdateManager: NSObject {
 /// Package to the Murmur target in Xcode (see DISTRIBUTION.md).
 @MainActor
 final class UpdateManager {
-    private var observer: NSObjectProtocol?
-
     init() {
-        observer = NotificationCenter.default.addObserver(
+        // Lives for the app's lifetime — observer is torn down at process
+        // exit so no deinit cleanup is needed.
+        _ = NotificationCenter.default.addObserver(
             forName: .murmurCheckForUpdates,
             object: nil,
             queue: .main
         ) { _ in
-            let alert = NSAlert()
-            alert.messageText = "Auto-update is not configured"
-            alert.informativeText = """
-            Sparkle has not been added to this build. Open Murmur.xcodeproj, \
-            File → Add Package Dependencies, paste \
-            https://github.com/sparkle-project/Sparkle, and rebuild.
-            """
-            alert.alertStyle = .informational
-            alert.runModal()
+            Task { @MainActor in
+                let alert = NSAlert()
+                alert.messageText = "Auto-update is not configured"
+                alert.informativeText = """
+                Sparkle has not been added to this build. Open Murmur.xcodeproj, \
+                File → Add Package Dependencies, paste \
+                https://github.com/sparkle-project/Sparkle, and rebuild.
+                """
+                alert.alertStyle = .informational
+                alert.runModal()
+            }
         }
-    }
-
-    deinit {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 
     func checkForUpdates() {

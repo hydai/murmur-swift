@@ -30,8 +30,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
 
-    private var configObserver: NSObjectProtocol?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set as accessory app (no dock icon, tray only)
         NSApplication.shared.setActivationPolicy(.accessory)
@@ -41,7 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observePipelineState()
         checkPermissions()
 
-        configObserver = NotificationCenter.default.addObserver(
+        // AppDelegate lives for the app's lifetime; the observer is torn
+        // down at process exit, so we don't store/remove it (deinit can't
+        // access MainActor state under Swift 6 strict concurrency).
+        _ = NotificationCenter.default.addObserver(
             forName: .murmurConfigDidChange,
             object: nil,
             queue: .main
@@ -71,12 +72,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
             openSettingsWindow()
-        }
-    }
-
-    deinit {
-        if let configObserver {
-            NotificationCenter.default.removeObserver(configObserver)
         }
     }
 
