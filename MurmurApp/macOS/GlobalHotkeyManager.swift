@@ -11,14 +11,14 @@ final class GlobalHotkeyManager {
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
-    private var spec: HotkeySpec = Self.defaultSpec
+    private var spec: HotkeySpec = GlobalHotkeyManager.defaultSpec
 
     var onHotkeyPressed: (() -> Void)?
 
     static let defaultSpec = HotkeySpec(modifiers: .control, keyCode: 50, displayString: "Ctrl+`")
 
     /// Start listening with the provided spec (defaults to Ctrl+`).
-    func start(spec: HotkeySpec = Self.defaultSpec) {
+    func start(spec: HotkeySpec = GlobalHotkeyManager.defaultSpec) {
         self.spec = spec
         installMonitors()
     }

@@ -47,6 +47,13 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: write
+    env:
+      # GitHub Actions disallows reading `secrets.*` directly in `if:`
+      # conditions, so we surface presence-checks as job-level env vars.
+      HAS_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
+      HAS_NOTARIZE: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID != '' }}
+      HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -56,7 +63,7 @@ jobs:
         run: xcodebuild -resolvePackageDependencies -project Murmur.xcodeproj -scheme Murmur
 
       - name: Import signing certificate
-        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        if: env.HAS_CERT == 'true'
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -110,7 +117,7 @@ jobs:
           scripts/build-dmg.sh "$APP_PATH" artifacts/Murmur-macOS.dmg
 
       - name: Notarize DMG
-        if: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID != '' }}
+        if: env.HAS_NOTARIZE == 'true'
         env:
           APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
           TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
@@ -124,7 +131,7 @@ jobs:
           xcrun stapler staple artifacts/Murmur-macOS.dmg
 
       - name: Sign update with Sparkle
-        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+        if: env.HAS_SPARKLE_KEY == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -149,7 +156,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Homebrew tap
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        if: env.HAS_TAP_TOKEN == 'true'
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
