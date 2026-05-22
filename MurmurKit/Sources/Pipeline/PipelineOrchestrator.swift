@@ -91,7 +91,7 @@ public actor PipelineOrchestrator {
                         do {
                             try await sttProvider.sendAudio(chunk)
                         } catch {
-                            await self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+                            self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
                         }
                     }
                     try? await sttProvider.stopSession()
