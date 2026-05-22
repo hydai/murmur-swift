@@ -11,6 +11,7 @@ public actor PipelineOrchestrator {
     private let commandDetector = VoiceCommandDetector()
 
     private var sttProvider: (any SttProvider)?
+    private var activeSttProvider: (any SttProvider)?
     private var llmProcessor: (any LlmProcessor)?
     private var outputSink: (any OutputSink)?
     private var dictionaryTerms: [String] = []
@@ -71,12 +72,20 @@ public actor PipelineOrchestrator {
 
         accumulator = TranscriptionAccumulator()
         hasStoppedSession = false
+        activeSttProvider = sttProvider
 
         // Start STT session
         try await sttProvider.startSession()
 
         // Start audio capture
-        try await audioCapture.start()
+        do {
+            try await audioCapture.start()
+        } catch {
+            if let provider = claimSessionTeardown() {
+                try? await provider.stopSession()
+            }
+            throw error
+        }
         transition(to: .recording)
 
         // Combine streams into a structured task group
@@ -190,7 +199,9 @@ public actor PipelineOrchestrator {
     private func claimSessionTeardown() -> (any SttProvider)? {
         guard !hasStoppedSession else { return nil }
         hasStoppedSession = true
-        return sttProvider
+        let provider = activeSttProvider
+        activeSttProvider = nil
+        return provider
     }
 
     private func handleTranscriptionEvent(_ event: TranscriptionEvent) {
