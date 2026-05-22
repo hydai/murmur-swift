@@ -63,6 +63,18 @@ struct VoiceCommandDetectorTests {
         }
     }
 
+    @Test("Translate command with multi-line and leading newline")
+    func translateMultiLineCommand() {
+        let (task, command) = detector.detect(transcription: "translate to Japanese:\nline1\nline2")
+        #expect(command == "translate")
+        if case .translate(let text, let language) = task {
+            #expect(text == "\nline1\nline2")
+            #expect(language == "Japanese")
+        } else {
+            Issue.record("Expected translate task with multi-line text")
+        }
+    }
+
     @Test("Multi-line text parsing")
     func multiLineCommand() {
         let multiLineText = "this is line one\nand line two\nand line three"
