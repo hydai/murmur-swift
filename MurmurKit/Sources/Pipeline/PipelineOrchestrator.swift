@@ -94,7 +94,9 @@ public actor PipelineOrchestrator {
                             self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
                         }
                     }
-                    try? await sttProvider.stopSession()
+                    if !Task.isCancelled {
+                        try? await sttProvider.stopSession()
+                    }
                 }
 
                 // 2. Forward audio levels for UI
