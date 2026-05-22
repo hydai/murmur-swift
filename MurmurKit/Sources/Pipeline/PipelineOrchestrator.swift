@@ -30,6 +30,16 @@ public actor PipelineOrchestrator {
         self.eventContinuation = cont
     }
 
+    deinit {
+        let capture = audioCapture
+        let provider = activeSttProvider
+        sessionTask?.cancel()
+        Task.detached {
+            await capture.stop()
+            try? await provider?.stopSession()
+        }
+    }
+
     // MARK: - Configuration
 
     /// Set the STT provider to use.
