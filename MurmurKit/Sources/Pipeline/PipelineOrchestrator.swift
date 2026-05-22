@@ -117,8 +117,12 @@ public actor PipelineOrchestrator {
                         if Task.isCancelled { break }
                         do {
                             try await sttProvider.sendAudio(chunk)
+                        } catch is CancellationError {
+                            break
                         } catch {
-                            self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+                            if !Task.isCancelled {
+                                self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+                            }
                         }
                     }
                     if !Task.isCancelled {
