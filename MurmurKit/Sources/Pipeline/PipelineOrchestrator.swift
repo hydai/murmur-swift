@@ -15,9 +15,7 @@ public actor PipelineOrchestrator {
     private var outputSink: (any OutputSink)?
     private var dictionaryTerms: [String] = []
 
-    private var audioTask: Task<Void, Never>?
-    private var levelTask: Task<Void, Never>?
-    private var transcriptionTask: Task<Void, Never>?
+    private var sessionTask: Task<Void, Never>?
 
     private var accumulator = TranscriptionAccumulator()
 
@@ -79,38 +77,47 @@ public actor PipelineOrchestrator {
         try await audioCapture.start()
         transition(to: .recording)
 
-        // Forward audio chunks to STT
+        // Combine streams into a structured task group
         let chunks = await audioCapture.chunks!
-        audioTask = Task { [weak self] in
-            for await chunk in chunks {
-                guard let self else { break }
-                do {
-                    try await sttProvider.sendAudio(chunk)
-                } catch {
-                    await self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+        let levels = await audioCapture.levels!
+        
+        sessionTask = Task { [weak self] in
+            await withDiscardingTaskGroup { group in
+                // 1. Forward audio chunks to STT
+                group.addTask {
+                    for await chunk in chunks {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        do {
+                            try await sttProvider.sendAudio(chunk)
+                        } catch {
+                            await self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+                        }
+                    }
+                    try? await sttProvider.stopSession()
+                }
+
+                // 2. Forward audio levels for UI
+                group.addTask {
+                    for await level in levels {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        self.emit(.audioLevel(level))
+                    }
+                }
+
+                // 3. Process transcription events
+                group.addTask {
+                    for await event in sttProvider.events {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        await self.handleTranscriptionEvent(event)
+                    }
+                    if !Task.isCancelled {
+                        await self?.finishTranscription()
+                    }
                 }
             }
-            // Audio stream ended (stop was called) — finalize STT
-            try? await sttProvider.stopSession()
-        }
-
-        // Forward audio levels for UI
-        let levels = await audioCapture.levels!
-        levelTask = Task { [weak self] in
-            for await level in levels {
-                guard let self else { break }
-                self.emit(.audioLevel(level))
-            }
-        }
-
-        // Process transcription events
-        transcriptionTask = Task { [weak self] in
-            for await event in sttProvider.events {
-                guard let self else { break }
-                await self.handleTranscriptionEvent(event)
-            }
-            // Transcription stream ended — run post-processing
-            await self?.finishTranscription()
         }
     }
 
@@ -119,17 +126,12 @@ public actor PipelineOrchestrator {
         guard state == .recording || state == .transcribing else { return }
 
         await audioCapture.stop()
-        levelTask?.cancel()
-        levelTask = nil
-
-        // Wait for audio + transcription tasks to complete, but enforce an
-        // overall timeout (longer than the 3s provider-level timeouts).
-        let audio = audioTask
-        let transcription = transcriptionTask
+        // Wait for pipeline task to complete naturally (driven by stream closures),
+        // but enforce an overall timeout just in case.
+        let session = sessionTask
         let didFinish = await withTaskGroup(of: Bool.self) { group in
             group.addTask {
-                await audio?.value
-                await transcription?.value
+                await session?.value
                 return true
             }
             group.addTask {
@@ -142,11 +144,9 @@ public actor PipelineOrchestrator {
         }
 
         if !didFinish {
-            audioTask?.cancel()
-            transcriptionTask?.cancel()
+            sessionTask?.cancel()
         }
-        audioTask = nil
-        transcriptionTask = nil
+        sessionTask = nil
 
         // Safety net: if state is still mid-pipeline after cleanup,
         // force transition to idle so the UI never gets permanently stuck.
@@ -160,12 +160,8 @@ public actor PipelineOrchestrator {
     public func cancel() async {
         await audioCapture.stop()
 
-        audioTask?.cancel()
-        transcriptionTask?.cancel()
-        levelTask?.cancel()
-        audioTask = nil
-        transcriptionTask = nil
-        levelTask = nil
+        sessionTask?.cancel()
+        sessionTask = nil
 
         accumulator = TranscriptionAccumulator()
         transition(to: .idle)
