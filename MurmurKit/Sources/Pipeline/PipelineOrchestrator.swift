@@ -11,13 +11,13 @@ public actor PipelineOrchestrator {
     private let commandDetector = VoiceCommandDetector()
 
     private var sttProvider: (any SttProvider)?
+    private var activeSttProvider: (any SttProvider)?
     private var llmProcessor: (any LlmProcessor)?
     private var outputSink: (any OutputSink)?
     private var dictionaryTerms: [String] = []
 
-    private var audioTask: Task<Void, Never>?
-    private var levelTask: Task<Void, Never>?
-    private var transcriptionTask: Task<Void, Never>?
+    private var sessionTask: Task<Void, Never>?
+    private var activeSessionId: UUID?
 
     private var accumulator = TranscriptionAccumulator()
 
@@ -28,6 +28,16 @@ public actor PipelineOrchestrator {
         var cont: AsyncStream<PipelineEvent>.Continuation!
         self.events = AsyncStream { cont = $0 }
         self.eventContinuation = cont
+    }
+
+    deinit {
+        let capture = audioCapture
+        let provider = activeSttProvider
+        sessionTask?.cancel()
+        Task.detached {
+            await capture.stop()
+            try? await provider?.stopSession()
+        }
     }
 
     // MARK: - Configuration
@@ -71,46 +81,78 @@ public actor PipelineOrchestrator {
         }
 
         accumulator = TranscriptionAccumulator()
+        let sessionId = UUID()
+        activeSessionId = sessionId
+        activeSttProvider = sttProvider
 
-        // Start STT session
-        try await sttProvider.startSession()
+        do {
+            // Start STT session
+            try await sttProvider.startSession()
+            // Start audio capture
+            try await audioCapture.start()
+        } catch {
+            if let provider = claimSessionTeardown(for: sessionId) {
+                try? await provider.stopSession()
+            }
+            throw error
+        }
 
-        // Start audio capture
-        try await audioCapture.start()
+        guard activeSessionId == sessionId else {
+            throw CancellationError()
+        }
+
         transition(to: .recording)
 
-        // Forward audio chunks to STT
-        let chunks = await audioCapture.chunks!
-        audioTask = Task { [weak self] in
-            for await chunk in chunks {
-                guard let self else { break }
-                do {
-                    try await sttProvider.sendAudio(chunk)
-                } catch {
-                    await self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+        // Combine streams into a structured task group
+        sessionTask = Task { [weak self] in
+            guard let capture = self?.audioCapture else { return }
+            let chunks = await capture.chunks!
+            let levels = await capture.levels!
+            
+            await withDiscardingTaskGroup { group in
+                // 1. Forward audio chunks to STT
+                group.addTask {
+                    for await chunk in chunks {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        do {
+                            try await sttProvider.sendAudio(chunk)
+                        } catch is CancellationError {
+                            break
+                        } catch {
+                            if !Task.isCancelled {
+                                self.emit(.error(message: "Audio send error: \(error.localizedDescription)", recoverable: true))
+                            }
+                        }
+                    }
+                    if !Task.isCancelled {
+                        if let provider = await self?.claimSessionTeardown(for: sessionId) {
+                            try? await provider.stopSession()
+                        }
+                    }
+                }
+
+                // 2. Forward audio levels for UI
+                group.addTask {
+                    for await level in levels {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        self.emit(.audioLevel(level))
+                    }
+                }
+
+                // 3. Process transcription events
+                group.addTask {
+                    for await event in sttProvider.events {
+                        guard let self else { break }
+                        if Task.isCancelled { break }
+                        await self.handleTranscriptionEvent(event)
+                    }
+                    if !Task.isCancelled {
+                        await self?.finishTranscription()
+                    }
                 }
             }
-            // Audio stream ended (stop was called) — finalize STT
-            try? await sttProvider.stopSession()
-        }
-
-        // Forward audio levels for UI
-        let levels = await audioCapture.levels!
-        levelTask = Task { [weak self] in
-            for await level in levels {
-                guard let self else { break }
-                self.emit(.audioLevel(level))
-            }
-        }
-
-        // Process transcription events
-        transcriptionTask = Task { [weak self] in
-            for await event in sttProvider.events {
-                guard let self else { break }
-                await self.handleTranscriptionEvent(event)
-            }
-            // Transcription stream ended — run post-processing
-            await self?.finishTranscription()
         }
     }
 
@@ -119,17 +161,12 @@ public actor PipelineOrchestrator {
         guard state == .recording || state == .transcribing else { return }
 
         await audioCapture.stop()
-        levelTask?.cancel()
-        levelTask = nil
-
-        // Wait for audio + transcription tasks to complete, but enforce an
-        // overall timeout (longer than the 3s provider-level timeouts).
-        let audio = audioTask
-        let transcription = transcriptionTask
+        // Wait for pipeline task to complete naturally (driven by stream closures),
+        // but enforce an overall timeout just in case.
+        let session = sessionTask
         let didFinish = await withTaskGroup(of: Bool.self) { group in
             group.addTask {
-                await audio?.value
-                await transcription?.value
+                await session?.value
                 return true
             }
             group.addTask {
@@ -142,11 +179,15 @@ public actor PipelineOrchestrator {
         }
 
         if !didFinish {
-            audioTask?.cancel()
-            transcriptionTask?.cancel()
+            sessionTask?.cancel()
+            let provider = claimCurrentSessionTeardown()
+            if let provider {
+                Task.detached {
+                    try? await provider.stopSession()
+                }
+            }
         }
-        audioTask = nil
-        transcriptionTask = nil
+        sessionTask = nil
 
         // Safety net: if state is still mid-pipeline after cleanup,
         // force transition to idle so the UI never gets permanently stuck.
@@ -160,18 +201,36 @@ public actor PipelineOrchestrator {
     public func cancel() async {
         await audioCapture.stop()
 
-        audioTask?.cancel()
-        transcriptionTask?.cancel()
-        levelTask?.cancel()
-        audioTask = nil
-        transcriptionTask = nil
-        levelTask = nil
+        sessionTask?.cancel()
+        sessionTask = nil
+        
+        let provider = claimCurrentSessionTeardown()
+        if let provider {
+            Task.detached {
+                try? await provider.stopSession()
+            }
+        }
 
         accumulator = TranscriptionAccumulator()
         transition(to: .idle)
     }
 
     // MARK: - Internal
+
+    private func claimSessionTeardown(for sessionId: UUID) -> (any SttProvider)? {
+        guard activeSessionId == sessionId else { return nil }
+        let provider = activeSttProvider
+        activeSttProvider = nil
+        activeSessionId = nil
+        return provider
+    }
+
+    private func claimCurrentSessionTeardown() -> (any SttProvider)? {
+        let provider = activeSttProvider
+        activeSttProvider = nil
+        activeSessionId = nil
+        return provider
+    }
 
     private func handleTranscriptionEvent(_ event: TranscriptionEvent) {
         switch event {
