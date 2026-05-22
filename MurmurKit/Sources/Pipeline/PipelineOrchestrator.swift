@@ -86,6 +86,11 @@ public actor PipelineOrchestrator {
             }
             throw error
         }
+
+        guard activeSessionId == sessionId else {
+            throw CancellationError()
+        }
+
         transition(to: .recording)
 
         // Combine streams into a structured task group
