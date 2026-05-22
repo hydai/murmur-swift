@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Canvas-based real-time audio waveform visualization.
 /// Displays a rolling series of bars driven by RMS audio levels.
-struct WaveformIndicator: View {
-    let levels: [Float]
+struct WaveformIndicator<C: RandomAccessCollection>: View where C.Element == Float, C.Index == Int {
+    let levels: C
     let voiceActive: Bool
     var barCount: Int = 40
     var barSpacing: CGFloat = 2
@@ -14,8 +14,14 @@ struct WaveformIndicator: View {
             let midY = size.height / 2
 
             for i in 0..<barCount {
-                let index = levels.count - barCount + i
-                let rms: Float = index >= 0 && index < levels.count ? levels[index] : 0
+                let indexOffset = levels.count - barCount + i
+                let rms: Float
+                if indexOffset >= 0 && indexOffset < levels.count {
+                    let index = levels.index(levels.startIndex, offsetBy: indexOffset)
+                    rms = levels[index]
+                } else {
+                    rms = 0
+                }
 
                 // Scale RMS (0-1) to bar height, with minimum visible height
                 let normalizedHeight = CGFloat(min(rms * 4, 1.0))

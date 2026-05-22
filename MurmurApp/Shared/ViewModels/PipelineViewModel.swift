@@ -18,8 +18,7 @@ final class PipelineViewModel {
     var detectedCommand: String?
 
     /// Rolling buffer of recent RMS levels for waveform display.
-    var recentLevels: [Float] = []
-    private let maxLevelHistory = 80
+    var recentLevels = RingBuffer<Float>(capacity: 80)
 
     /// Full display text combining committed segments + current partial.
     var displayText: String {
@@ -63,7 +62,7 @@ final class PipelineViewModel {
         errorMessage = nil
         detectedCommand = nil
         processingTimeMs = 0
-        recentLevels = []
+        recentLevels.clear()
 
         let config = await configManager.getConfig()
 
@@ -127,9 +126,6 @@ final class PipelineViewModel {
             currentRMS = level.rms
             voiceActive = level.voiceActive
             recentLevels.append(level.rms)
-            if recentLevels.count > maxLevelHistory {
-                recentLevels.removeFirst(recentLevels.count - maxLevelHistory)
-            }
 
         case .partialTranscription(let text):
             partialText = text
