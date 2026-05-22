@@ -39,6 +39,18 @@ struct VoiceCommandDetectorTests {
         }
     }
 
+    @Test("Detect casual tone command")
+    func casualToneCommand() {
+        let (task, command) = detector.detect(transcription: "make it casual: hey what's up")
+        #expect(command == "casual")
+        if case .changeTone(let text, let tone) = task {
+            #expect(text == "hey what's up")
+            #expect(tone == "casual")
+        } else {
+            Issue.record("Expected changeTone task")
+        }
+    }
+
     @Test("Detect translate command")
     func translateCommand() {
         let (task, command) = detector.detect(transcription: "translate to Japanese: good morning")
@@ -48,6 +60,41 @@ struct VoiceCommandDetectorTests {
             #expect(language == "Japanese")
         } else {
             Issue.record("Expected translate task")
+        }
+    }
+
+    @Test("Translate command with multi-line and leading newline")
+    func translateMultiLineCommand() {
+        let (task, command) = detector.detect(transcription: "translate to Japanese:\nline1\nline2")
+        #expect(command == "translate")
+        if case .translate(let text, let language) = task {
+            #expect(text == "\nline1\nline2")
+            #expect(language == "Japanese")
+        } else {
+            Issue.record("Expected translate task with multi-line text")
+        }
+    }
+
+    @Test("Multi-line text parsing")
+    func multiLineCommand() {
+        let multiLineText = "this is line one\nand line two\nand line three"
+        let (task, command) = detector.detect(transcription: "shorten: \(multiLineText)")
+        #expect(command == "shorten")
+        if case .shorten(let text) = task {
+            #expect(text == multiLineText)
+        } else {
+            Issue.record("Expected shorten task with multi-line text")
+        }
+    }
+
+    @Test("Leading newline is preserved")
+    func leadingNewlineCommand() {
+        let (task, command) = detector.detect(transcription: "shorten:\nhello")
+        #expect(command == "shorten")
+        if case .shorten(let text) = task {
+            #expect(text == "\nhello")
+        } else {
+            Issue.record("Expected shorten task to preserve leading newline")
         }
     }
 
