@@ -75,6 +75,17 @@ struct VoiceCommandDetectorTests {
         }
     }
 
+    @Test("Leading newline is preserved")
+    func leadingNewlineCommand() {
+        let (task, command) = detector.detect(transcription: "shorten:\nhello")
+        #expect(command == "shorten")
+        if case .shorten(let text) = task {
+            #expect(text == "\nhello")
+        } else {
+            Issue.record("Expected shorten task to preserve leading newline")
+        }
+    }
+
     @Test("Detect reply command")
     func replyCommand() {
         let (task, command) = detector.detect(transcription: "reply to: can you join the meeting?")

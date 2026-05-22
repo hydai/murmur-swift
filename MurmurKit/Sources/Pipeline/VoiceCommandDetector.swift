@@ -20,22 +20,22 @@ public struct VoiceCommandDetector: Sendable {
     public init() {
         self.parsers = [
             PrefixRegexCommandParser(
-                pattern: "^(?:shorten this|shorten)\\s*:\\s*(.*)$",
+                pattern: "^(?:shorten this|shorten)[ \\t]*:[ \\t]*(.*)$",
                 commandName: "shorten",
                 taskBuilder: { .shorten(text: $0) }
             ),
             PrefixRegexCommandParser(
-                pattern: "^(?:make it formal|formalize|make this formal)\\s*:\\s*(.*)$",
+                pattern: "^(?:make it formal|formalize|make this formal)[ \\t]*:[ \\t]*(.*)$",
                 commandName: "formal",
                 taskBuilder: { .changeTone(text: $0, targetTone: "formal") }
             ),
             PrefixRegexCommandParser(
-                pattern: "^(?:make it casual|casualize|make this casual)\\s*:\\s*(.*)$",
+                pattern: "^(?:make it casual|casualize|make this casual)[ \\t]*:[ \\t]*(.*)$",
                 commandName: "casual",
                 taskBuilder: { .changeTone(text: $0, targetTone: "casual") }
             ),
             PrefixRegexCommandParser(
-                pattern: "^(?:reply to|generate reply|reply to this)\\s*:\\s*(.*)$",
+                pattern: "^(?:reply to|generate reply|reply to this)[ \\t]*:[ \\t]*(.*)$",
                 commandName: "reply",
                 taskBuilder: { .generateReply(context: $0) }
             ),
@@ -96,7 +96,7 @@ private struct TranslateCommandParser: VoiceCommandParser {
 
     init() {
         do {
-            self.regex = try NSRegularExpression(pattern: "^translate to\\s+([^:]+)\\s*:\\s*(.*)$", options: [.caseInsensitive, .dotMatchesLineSeparators])
+            self.regex = try NSRegularExpression(pattern: "^translate to[ \\t]+([^:]+)[ \\t]*:[ \\t]*(.*)$", options: [.caseInsensitive, .dotMatchesLineSeparators])
         } catch {
             preconditionFailure("Invalid regex pattern for TranslateCommandParser: \(error)")
         }
