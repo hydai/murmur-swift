@@ -1,7 +1,7 @@
 import Foundation
 
 /// Protocol for individual voice command parsers.
-public protocol VoiceCommandParser: Sendable {
+protocol VoiceCommandParser: Sendable {
     /// Attempts to parse a transcription into a specific ProcessingTask.
     /// Returns the task and the command name if matched, otherwise nil.
     func parse(transcription: String) -> (ProcessingTask, String)?
@@ -61,10 +61,12 @@ private struct PrefixRegexCommandParser: VoiceCommandParser {
     let regex: NSRegularExpression
     let commandName: String
     let taskBuilder: @Sendable (String) -> ProcessingTask
-
     init(pattern: String, commandName: String, taskBuilder: @escaping @Sendable (String) -> ProcessingTask) {
-        // swiftlint:disable:next force_try
-        self.regex = try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        do {
+            self.regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        } catch {
+            preconditionFailure("Invalid regex pattern '\(pattern)': \(error)")
+        }
         self.commandName = commandName
         self.taskBuilder = taskBuilder
     }
@@ -84,10 +86,15 @@ private struct PrefixRegexCommandParser: VoiceCommandParser {
 
 /// Specific parser for translation commands.
 private struct TranslateCommandParser: VoiceCommandParser {
-    // Matches "translate to <lang> : <text>"
-    // swiftlint:disable:next force_try
-    let regex = try! NSRegularExpression(pattern: "^translate to\\s+([^:]+)\\s*:\\s*(.*)$", options: [.caseInsensitive])
+    let regex: NSRegularExpression
 
+    init() {
+        do {
+            self.regex = try NSRegularExpression(pattern: "^translate to\\s+([^:]+)\\s*:\\s*(.*)$", options: [.caseInsensitive])
+        } catch {
+            preconditionFailure("Invalid regex pattern for TranslateCommandParser: \(error)")
+        }
+    }
     func parse(transcription: String) -> (ProcessingTask, String)? {
         let nsString = transcription as NSString
         let match = regex.firstMatch(in: transcription, range: NSRange(location: 0, length: nsString.length))
