@@ -8,6 +8,12 @@ protocol VoiceCommandParser: Sendable {
 }
 
 /// Parses voice commands using a registered list of strategies.
+/// Supported commands include:
+/// - Shorten: `shorten this: <text>`, `shorten: <text>`
+/// - Formal Tone: `make it formal: <text>`, `formalize: <text>`, `make this formal: <text>`
+/// - Casual Tone: `make it casual: <text>`, `casualize: <text>`, `make this casual: <text>`
+/// - Reply: `reply to: <text>`, `generate reply: <text>`, `reply to this: <text>`
+/// - Translate: `translate to <language>: <text>`
 public struct VoiceCommandDetector: Sendable {
     private let parsers: [any VoiceCommandParser]
 
