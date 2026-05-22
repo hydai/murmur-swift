@@ -17,7 +17,7 @@ public actor PipelineOrchestrator {
     private var dictionaryTerms: [String] = []
 
     private var sessionTask: Task<Void, Never>?
-    private var hasStoppedSession: Bool = false
+    private var activeSessionId: UUID?
 
     private var accumulator = TranscriptionAccumulator()
 
@@ -71,7 +71,8 @@ public actor PipelineOrchestrator {
         }
 
         accumulator = TranscriptionAccumulator()
-        hasStoppedSession = false
+        let sessionId = UUID()
+        activeSessionId = sessionId
         activeSttProvider = sttProvider
 
         // Start STT session
@@ -81,7 +82,7 @@ public actor PipelineOrchestrator {
         do {
             try await audioCapture.start()
         } catch {
-            if let provider = claimSessionTeardown() {
+            if let provider = claimSessionTeardown(for: sessionId) {
                 try? await provider.stopSession()
             }
             throw error
@@ -107,7 +108,7 @@ public actor PipelineOrchestrator {
                         }
                     }
                     if !Task.isCancelled {
-                        if let provider = await self?.claimSessionTeardown() {
+                        if let provider = await self?.claimSessionTeardown(for: sessionId) {
                             try? await provider.stopSession()
                         }
                     }
@@ -161,8 +162,9 @@ public actor PipelineOrchestrator {
 
         if !didFinish {
             sessionTask?.cancel()
-            Task.detached { [weak self] in
-                if let provider = await self?.claimSessionTeardown() {
+            let provider = claimCurrentSessionTeardown()
+            if let provider {
+                Task.detached {
                     try? await provider.stopSession()
                 }
             }
@@ -184,8 +186,9 @@ public actor PipelineOrchestrator {
         sessionTask?.cancel()
         sessionTask = nil
         
-        Task.detached { [weak self] in
-            if let provider = await self?.claimSessionTeardown() {
+        let provider = claimCurrentSessionTeardown()
+        if let provider {
+            Task.detached {
                 try? await provider.stopSession()
             }
         }
@@ -196,11 +199,18 @@ public actor PipelineOrchestrator {
 
     // MARK: - Internal
 
-    private func claimSessionTeardown() -> (any SttProvider)? {
-        guard !hasStoppedSession else { return nil }
-        hasStoppedSession = true
+    private func claimSessionTeardown(for sessionId: UUID) -> (any SttProvider)? {
+        guard activeSessionId == sessionId else { return nil }
         let provider = activeSttProvider
         activeSttProvider = nil
+        activeSessionId = nil
+        return provider
+    }
+
+    private func claimCurrentSessionTeardown() -> (any SttProvider)? {
+        let provider = activeSttProvider
+        activeSttProvider = nil
+        activeSessionId = nil
         return provider
     }
 
