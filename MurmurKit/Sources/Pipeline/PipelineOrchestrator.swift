@@ -16,6 +16,7 @@ public actor PipelineOrchestrator {
     private var dictionaryTerms: [String] = []
 
     private var sessionTask: Task<Void, Never>?
+    private var hasStoppedSession: Bool = false
 
     private var accumulator = TranscriptionAccumulator()
 
@@ -69,6 +70,7 @@ public actor PipelineOrchestrator {
         }
 
         accumulator = TranscriptionAccumulator()
+        hasStoppedSession = false
 
         // Start STT session
         try await sttProvider.startSession()
@@ -78,10 +80,11 @@ public actor PipelineOrchestrator {
         transition(to: .recording)
 
         // Combine streams into a structured task group
-        let chunks = await audioCapture.chunks!
-        let levels = await audioCapture.levels!
-        
         sessionTask = Task { [weak self] in
+            guard let capture = self?.audioCapture else { return }
+            let chunks = await capture.chunks!
+            let levels = await capture.levels!
+            
             await withDiscardingTaskGroup { group in
                 // 1. Forward audio chunks to STT
                 group.addTask {
@@ -95,7 +98,9 @@ public actor PipelineOrchestrator {
                         }
                     }
                     if !Task.isCancelled {
-                        try? await sttProvider.stopSession()
+                        if let provider = await self?.claimSessionTeardown() {
+                            try? await provider.stopSession()
+                        }
                     }
                 }
 
@@ -147,9 +152,10 @@ public actor PipelineOrchestrator {
 
         if !didFinish {
             sessionTask?.cancel()
-            let provider = sttProvider
-            Task.detached {
-                try? await provider?.stopSession()
+            Task.detached { [weak self] in
+                if let provider = await self?.claimSessionTeardown() {
+                    try? await provider.stopSession()
+                }
             }
         }
         sessionTask = nil
@@ -169,9 +175,10 @@ public actor PipelineOrchestrator {
         sessionTask?.cancel()
         sessionTask = nil
         
-        let provider = sttProvider
-        Task.detached {
-            try? await provider?.stopSession()
+        Task.detached { [weak self] in
+            if let provider = await self?.claimSessionTeardown() {
+                try? await provider.stopSession()
+            }
         }
 
         accumulator = TranscriptionAccumulator()
@@ -179,6 +186,12 @@ public actor PipelineOrchestrator {
     }
 
     // MARK: - Internal
+
+    private func claimSessionTeardown() -> (any SttProvider)? {
+        guard !hasStoppedSession else { return nil }
+        hasStoppedSession = true
+        return sttProvider
+    }
 
     private func handleTranscriptionEvent(_ event: TranscriptionEvent) {
         switch event {
