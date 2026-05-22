@@ -37,6 +37,7 @@ final class PipelineViewModel {
     // MARK: - Internal
     private let orchestrator = PipelineOrchestrator()
     let configManager = ConfigManager()
+    private let providerFactory = ProviderFactory()
     private var eventTask: Task<Void, Never>?
 
     init() {
@@ -67,11 +68,11 @@ final class PipelineViewModel {
         let config = await configManager.getConfig()
 
         // Configure STT provider based on config
-        let stt: any SttProvider = createSttProvider(config)
+        let stt: any SttProvider = providerFactory.createSttProvider(from: config)
         await orchestrator.setSttProvider(stt)
 
         // Configure LLM processor based on config
-        let llm: any LlmProcessor = createLlmProcessor(config)
+        let llm: any LlmProcessor = await providerFactory.createLlmProcessor(from: config)
         await orchestrator.setLlmProcessor(llm)
 
         // Configure output based on config
@@ -98,83 +99,11 @@ final class PipelineViewModel {
     /// recording. Called by AppDelegate when `.murmurConfigDidChange` fires.
     func updateRuntimeConfig() async {
         let config = await configManager.getConfig()
-        let llm = createLlmProcessor(config)
+        let llm = await providerFactory.createLlmProcessor(from: config)
         await orchestrator.setLlmProcessor(llm)
         let output = CombinedOutput(mode: config.outputMode)
         await orchestrator.setOutputSink(output)
         await orchestrator.setDictionaryTerms(config.personalDictionary.allTermStrings)
-    }
-
-    // MARK: - Provider factories
-
-    private func createSttProvider(_ config: AppConfig) -> any SttProvider {
-        // Convert "auto" to nil — nil means let the API auto-detect
-        let lang: String? = config.sttLanguage == "auto" ? nil : config.sttLanguage
-
-        switch config.sttProvider {
-        case .appleStt:
-            // Apple STT uses its own locale-based config, not the language hint
-            let locale = config.appleSttLocale == "auto" ? nil : Locale(identifier: config.appleSttLocale)
-            return AppleSttProvider(locale: locale)
-        case .elevenLabs:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.elevenLabs] ?? ""
-            let elevenLabsLang: String? = lang.flatMap { ElevenLabsLanguages.iso639_3(for: $0) ?? $0 }
-            return ElevenLabsProvider(apiKey: key, languageCode: elevenLabsLang)
-        case .openAI:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.openAI] ?? ""
-            return OpenAIProvider(apiKey: key, language: lang)
-        case .groq:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.groq] ?? ""
-            return GroqProvider(apiKey: key, language: lang)
-        case .customStt:
-            let raw = config.apiKeys[ProviderDefaults.ApiKey.customStt] ?? ""
-            return CustomSttProvider(
-                apiKey: raw.isEmpty ? nil : raw,
-                model: config.httpSttConfig.customModel,
-                baseURL: config.httpSttConfig.customBaseUrl,
-                language: lang
-            )
-        }
-    }
-
-    private func createLlmProcessor(_ config: AppConfig) -> any LlmProcessor {
-        let modelOverride = config.llmModel.isEmpty ? nil : config.llmModel
-        func resolved(_ type: LlmProcessorType) -> String {
-            modelOverride ?? ProviderDefaults.defaultModel(for: type)
-        }
-
-        // Load any prompt overrides so live edits flow through to the next
-        // recording. Missing files / IO errors silently fall back to defaults.
-        let promptSet = (try? PromptStore.loadAll(configDir: ConfigManager.defaultDirectory)) ?? PromptSet()
-        let promptManager = PromptManager(set: promptSet)
-
-        switch config.llmProcessor {
-        case .appleLlm:
-            return AppleLlmProcessor(promptManager: promptManager)
-        case .gemini:
-            return GeminiProcessor(model: resolved(.gemini), promptManager: promptManager)
-        case .copilot:
-            return CopilotProcessor(model: resolved(.copilot), promptManager: promptManager)
-        case .openAILlm:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.openAILlm]
-                ?? config.apiKeys[ProviderDefaults.ApiKey.openAI]
-                ?? ""
-            return OpenAILlmProcessor(apiKey: key, model: resolved(.openAILlm), promptManager: promptManager)
-        case .claude:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.anthropic] ?? ""
-            return ClaudeLlmProcessor(apiKey: key, model: resolved(.claude), promptManager: promptManager)
-        case .geminiApi:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.googleAI] ?? ""
-            return GeminiApiProcessor(apiKey: key, model: resolved(.geminiApi), promptManager: promptManager)
-        case .customOpenAI:
-            let key = config.apiKeys[ProviderDefaults.ApiKey.customOpenAI] ?? ""
-            return CustomOpenAIProcessor(
-                apiKey: key,
-                model: resolved(.customOpenAI),
-                baseURL: config.httpLlmConfig.customBaseUrl,
-                promptManager: promptManager
-            )
-        }
     }
 
     // MARK: - Event loop
