@@ -145,6 +145,10 @@ public actor PipelineOrchestrator {
 
         if !didFinish {
             sessionTask?.cancel()
+            let provider = sttProvider
+            Task.detached {
+                try? await provider?.stopSession()
+            }
         }
         sessionTask = nil
 
@@ -162,6 +166,11 @@ public actor PipelineOrchestrator {
 
         sessionTask?.cancel()
         sessionTask = nil
+        
+        let provider = sttProvider
+        Task.detached {
+            try? await provider?.stopSession()
+        }
 
         accumulator = TranscriptionAccumulator()
         transition(to: .idle)
