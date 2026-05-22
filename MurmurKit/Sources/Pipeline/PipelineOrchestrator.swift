@@ -75,11 +75,10 @@ public actor PipelineOrchestrator {
         activeSessionId = sessionId
         activeSttProvider = sttProvider
 
-        // Start STT session
-        try await sttProvider.startSession()
-
-        // Start audio capture
         do {
+            // Start STT session
+            try await sttProvider.startSession()
+            // Start audio capture
             try await audioCapture.start()
         } catch {
             if let provider = claimSessionTeardown(for: sessionId) {
