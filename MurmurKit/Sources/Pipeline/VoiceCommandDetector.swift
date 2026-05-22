@@ -42,14 +42,10 @@ public struct VoiceCommandDetector: Sendable {
         transcription: String,
         dictionaryTerms: [String] = []
     ) -> (task: ProcessingTask, commandName: String?) {
-        let normalized = transcription.lowercased().trimmingCharacters(in: .whitespaces)
+        let trimmed = transcription.trimmingCharacters(in: .whitespaces)
 
         for parser in parsers {
-            if let result = parser.parse(transcription: normalized) {
-                // If the parser matched, we use the matched text or fallback to the original if needed.
-                // Note: The matched text might be fully lowercase. To preserve casing,
-                // we'd need more complex regex, but the previous implementation also used lowercased text
-                // for the prefix check. We'll use the original transcription with prefix removed.
+            if let result = parser.parse(transcription: trimmed) {
                 return (result.0, result.1)
             }
         }
