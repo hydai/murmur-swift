@@ -69,7 +69,7 @@ private struct PrefixRegexCommandParser: VoiceCommandParser {
     let taskBuilder: @Sendable (String) -> ProcessingTask
     init(pattern: String, commandName: String, taskBuilder: @escaping @Sendable (String) -> ProcessingTask) {
         do {
-            self.regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            self.regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators])
         } catch {
             preconditionFailure("Invalid regex pattern '\(pattern)': \(error)")
         }
@@ -96,7 +96,7 @@ private struct TranslateCommandParser: VoiceCommandParser {
 
     init() {
         do {
-            self.regex = try NSRegularExpression(pattern: "^translate to\\s+([^:]+)\\s*:\\s*(.*)$", options: [.caseInsensitive])
+            self.regex = try NSRegularExpression(pattern: "^translate to\\s+([^:]+)\\s*:\\s*(.*)$", options: [.caseInsensitive, .dotMatchesLineSeparators])
         } catch {
             preconditionFailure("Invalid regex pattern for TranslateCommandParser: \(error)")
         }

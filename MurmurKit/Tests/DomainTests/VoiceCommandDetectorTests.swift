@@ -63,6 +63,18 @@ struct VoiceCommandDetectorTests {
         }
     }
 
+    @Test("Multi-line text parsing")
+    func multiLineCommand() {
+        let multiLineText = "this is line one\nand line two\nand line three"
+        let (task, command) = detector.detect(transcription: "shorten: \(multiLineText)")
+        #expect(command == "shorten")
+        if case .shorten(let text) = task {
+            #expect(text == multiLineText)
+        } else {
+            Issue.record("Expected shorten task with multi-line text")
+        }
+    }
+
     @Test("Detect reply command")
     func replyCommand() {
         let (task, command) = detector.detect(transcription: "reply to: can you join the meeting?")
