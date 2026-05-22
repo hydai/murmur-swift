@@ -39,6 +39,18 @@ struct VoiceCommandDetectorTests {
         }
     }
 
+    @Test("Detect casual tone command")
+    func casualToneCommand() {
+        let (task, command) = detector.detect(transcription: "make it casual: hey what's up")
+        #expect(command == "casual")
+        if case .changeTone(let text, let tone) = task {
+            #expect(text == "hey what's up")
+            #expect(tone == "casual")
+        } else {
+            Issue.record("Expected changeTone task")
+        }
+    }
+
     @Test("Detect translate command")
     func translateCommand() {
         let (task, command) = detector.detect(transcription: "translate to Japanese: good morning")
