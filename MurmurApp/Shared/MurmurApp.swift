@@ -286,6 +286,7 @@ private enum AppUITestSupport {
 
     static func prepare(configManager: ConfigManager) async {
         if CommandLine.arguments.contains("--ui-testing-whisperkit-config")
+            || CommandLine.arguments.contains("--ui-testing-whisperkit-model-management")
             || CommandLine.arguments.contains("--ui-testing-seed-whisperkit-diagnostics") {
             try? await configManager.setConfig(whisperKitConfig())
         }
@@ -296,11 +297,13 @@ private enum AppUITestSupport {
     }
 
     private static func whisperKitConfig() -> AppConfig {
+        let environment = ProcessInfo.processInfo.environment
         var config = AppConfig()
         config.sttProvider = .whisperKit
         config.whisperKitSttConfig = WhisperKitSttConfig(
-            model: "ui-test-tiny",
-            modelRepo: "ui-test/repo",
+            model: environment["MURMUR_UI_TEST_WHISPERKIT_MODEL"] ?? "ui-test-tiny",
+            modelRepo: environment["MURMUR_UI_TEST_WHISPERKIT_MODEL_REPO"] ?? "ui-test/repo",
+            modelFolder: environment["MURMUR_UI_TEST_WHISPERKIT_MODEL_FOLDER"] ?? "",
             prewarm: false,
             realtimeIntervalMilliseconds: 500,
             realtimeMinimumSamples: 8_000,

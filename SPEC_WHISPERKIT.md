@@ -275,6 +275,8 @@ Float(sample) / Float(Int16.max)
 - Add unit tests for the diagnostics snapshot reducer.
 - Add macOS UI automation for the in-app diagnostics panel, including seeded
   metrics and reset behavior.
+- Add macOS UI automation for the model management panel, including seeded
+  local-folder readiness and cache fallback state.
 - Run package tests.
 
 ## Acceptance Criteria

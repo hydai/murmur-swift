@@ -13,6 +13,9 @@ struct WhisperKitModelStatusView: View {
                 Image(systemName: icon)
                     .foregroundStyle(iconColor)
                 Text(statusText)
+                    .accessibilityIdentifier("whisperkit-model-status-text")
+                    .accessibilityLabel("Model status")
+                    .accessibilityValue(statusText)
                 Spacer()
                 if viewModel.whisperKitModelStatus != .ready {
                     Button(buttonTitle) {
@@ -20,6 +23,7 @@ struct WhisperKitModelStatusView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.whisperKitModelStatus.isBusy)
+                    .accessibilityIdentifier("whisperkit-model-load-button")
                 }
             }
 
@@ -34,9 +38,15 @@ struct WhisperKitModelStatusView: View {
                 Image(systemName: storageIcon)
                     .foregroundStyle(storageColor)
                 Text(storageText)
+                    .accessibilityIdentifier("whisperkit-model-storage-text")
+                    .accessibilityLabel("Model storage")
+                    .accessibilityValue(storageText)
                 Spacer()
                 Text(viewModel.whisperKitCacheSizeText)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("whisperkit-model-cache-size")
+                    .accessibilityLabel("Model cache size")
+                    .accessibilityValue(viewModel.whisperKitCacheSizeText)
             }
 
             Text(viewModel.whisperKitStorageStatus.path)
@@ -44,11 +54,15 @@ struct WhisperKitModelStatusView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .textSelection(.enabled)
+                .accessibilityIdentifier("whisperkit-model-storage-path")
+                .accessibilityLabel("Model storage path")
+                .accessibilityValue(viewModel.whisperKitStorageStatus.path)
 
             if let message = storageErrorText {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(.red)
+                    .accessibilityIdentifier("whisperkit-model-storage-error")
             }
 
             HStack {
@@ -59,6 +73,7 @@ struct WhisperKitModelStatusView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!viewModel.canOpenWhisperKitStorageLocation)
+                .accessibilityIdentifier("whisperkit-model-open-storage")
 
                 Button {
                     Task { await viewModel.refreshWhisperKitModelInventory() }
@@ -67,6 +82,7 @@ struct WhisperKitModelStatusView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(viewModel.isDeletingWhisperKitCachedModel)
+                .accessibilityIdentifier("whisperkit-model-refresh-cache")
 
                 Button(role: .destructive) {
                     Task { await viewModel.deleteWhisperKitCachedModel() }
@@ -83,6 +99,7 @@ struct WhisperKitModelStatusView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!viewModel.canDeleteWhisperKitCachedModel)
+                .accessibilityIdentifier("whisperkit-model-delete-cache")
             }
 
             if let err = viewModel.whisperKitModelManagementError {
@@ -106,6 +123,33 @@ struct WhisperKitModelStatusView: View {
             Task { await viewModel.refreshWhisperKitModelStatus() }
             Task { await viewModel.refreshWhisperKitModelInventory() }
         }
+        .overlay(alignment: .topLeading) {
+            accessibilityModelValues
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("whisperkit-model-management-panel")
+    }
+
+    private var accessibilityModelValues: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            accessibilityValue("status", label: "Model status", value: statusText)
+            accessibilityValue("storage", label: "Model storage", value: storageText)
+            accessibilityValue("cache-size", label: "Model cache size", value: viewModel.whisperKitCacheSizeText)
+            accessibilityValue("storage-path", label: "Model storage path", value: viewModel.whisperKitStorageStatus.path)
+        }
+        .frame(width: 1, height: 1, alignment: .topLeading)
+        .clipped()
+        .opacity(0.01)
+        .allowsHitTesting(false)
+        .accessibilityHidden(false)
+    }
+
+    private func accessibilityValue(_ identifier: String, label: String, value: String) -> some View {
+        Text(value)
+            .font(.caption2)
+            .accessibilityLabel(label)
+            .accessibilityValue(value)
+            .accessibilityIdentifier("whisperkit-model-\(identifier)-value")
     }
 
     private var buttonTitle: String {

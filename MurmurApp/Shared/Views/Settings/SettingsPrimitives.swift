@@ -66,6 +66,7 @@ struct SettingsInput: View {
     let placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    var accessibilityIdentifier: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -75,10 +76,23 @@ struct SettingsInput: View {
             if isSecure {
                 SecureField(placeholder, text: $text)
                     .textFieldStyle(.roundedBorder)
+                    .optionalAccessibilityIdentifier(accessibilityIdentifier)
             } else {
                 TextField(placeholder, text: $text)
                     .textFieldStyle(.roundedBorder)
+                    .optionalAccessibilityIdentifier(accessibilityIdentifier)
             }
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func optionalAccessibilityIdentifier(_ identifier: String?) -> some View {
+        if let identifier {
+            accessibilityIdentifier(identifier)
+        } else {
+            self
         }
     }
 }

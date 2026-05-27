@@ -20,6 +20,7 @@ struct ProviderSettingsView: View {
                         Text("Custom OpenAI-compatible").tag(SttProviderType.customStt)
                     }
                     .pickerStyle(.menu)
+                    .accessibilityIdentifier("stt-provider-picker")
 
                     providerSpecificFields
                 }
@@ -73,6 +74,7 @@ struct ProviderSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
+            .accessibilityIdentifier("whisperkit-model-picker")
             HStack {
                 Button {
                     viewModel.useRecommendedWhisperKitModel()
@@ -81,6 +83,7 @@ struct ProviderSettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(viewModel.whisperKitModel == viewModel.whisperKitRecommendedModel)
+                .accessibilityIdentifier("whisperkit-model-use-recommended")
 
                 Button {
                     Task { await viewModel.refreshWhisperKitModelInventory() }
@@ -88,21 +91,25 @@ struct ProviderSettingsView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("whisperkit-model-catalog-refresh")
             }
             SettingsInput(
                 label: "Custom model",
                 placeholder: ProviderDefaults.whisperKitSttModel,
-                text: $viewModel.whisperKitModel
+                text: $viewModel.whisperKitModel,
+                accessibilityIdentifier: "whisperkit-custom-model-field"
             )
             SettingsInput(
                 label: "Model repo",
                 placeholder: ProviderDefaults.whisperKitModelRepo,
-                text: $viewModel.whisperKitModelRepo
+                text: $viewModel.whisperKitModelRepo,
+                accessibilityIdentifier: "whisperkit-model-repo-field"
             )
             SettingsInput(
                 label: "Model folder (optional)",
                 placeholder: "",
-                text: $viewModel.whisperKitModelFolder
+                text: $viewModel.whisperKitModelFolder,
+                accessibilityIdentifier: "whisperkit-model-folder-field"
             )
             HStack {
                 Button {
@@ -111,6 +118,7 @@ struct ProviderSettingsView: View {
                     Label("Choose Folder", systemImage: "folder")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("whisperkit-model-choose-folder")
 
                 Button {
                     viewModel.clearWhisperKitModelFolder()
@@ -119,8 +127,10 @@ struct ProviderSettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(viewModel.whisperKitModelFolder.isEmpty)
+                .accessibilityIdentifier("whisperkit-model-use-cache")
             }
             Toggle("Prewarm model", isOn: $viewModel.whisperKitPrewarm)
+                .accessibilityIdentifier("whisperkit-model-prewarm-toggle")
 
             Divider().padding(.vertical, Spacing.xs)
             SectionHeader("Realtime partials")
