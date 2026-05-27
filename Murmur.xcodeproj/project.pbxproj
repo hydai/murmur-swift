@@ -505,7 +505,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -532,7 +532,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -559,7 +559,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile;
 				PRODUCT_NAME = MurmurMobile;
 				SDKROOT = iphoneos;
@@ -589,7 +589,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile;
 				PRODUCT_NAME = MurmurMobile;
 				SDKROOT = iphoneos;
@@ -617,7 +617,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -645,7 +645,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -671,7 +671,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -694,7 +694,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;

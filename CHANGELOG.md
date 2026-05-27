@@ -1,3 +1,32 @@
+## 0.1.11 (2026-05-27)
+
+### Features
+
+- upgrade ElevenLabs to Scribe v2 realtime protocol
+- update default models to match Rust v0.2.12
+- wire hotkey, opacity, and theme from AppConfig
+- add PromptStore and PromptSet for runtime-editable prompts
+- hot-swap LLM, output mode, and dictionary on config change
+- paginate, debounce search, and use relative timestamps
+- open Settings window on first launch
+- redesign UI with sidebar nav + Prompts editor
+- add Apple STT model download UI with progress
+- integrate Sparkle for in-app auto-update
+- DMG packaging, signing, notarization, Sparkle, Homebrew
+- add iOS and iPadOS support
+- add native WhisperKit STT provider
+- polish WhisperKit model management UI
+- instrument WhisperKit realtime transcription
+- add WhisperKit realtime tuning controls
+- log WhisperKit diagnostics
+- harden WhisperKit stop cancellation
+- add WhisperKit diagnostics panel
+
+### Fixes
+
+- unblock Swift build and release workflow
+- drop deinit observer cleanup that violated strict concurrency
+
 ## 0.1.10 (2026-02-27)
 
 ### Features
