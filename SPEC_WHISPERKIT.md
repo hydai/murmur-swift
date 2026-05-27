@@ -256,6 +256,14 @@ Float(sample) / Float(Int16.max)
 - Add an opt-in integration test for real tiny-model provider transcription
   using JFK audio, including realtime partial output, final committed text, and
   special-token filtering.
+- Add an opt-in expanded transcription matrix for the real tiny model covering
+  English realtime partials, Spanish explicit language, Spanish auto language
+  detection, Japanese explicit language, and local model-folder transcription
+  from the downloaded cache. Run it with
+  `MURMUR_RUN_WHISPERKIT_TRANSCRIPTION_MATRIX_E2E=1`.
+- Add an opt-in production-default model transcription E2E path for the heavier
+  default WhisperKit model. Run it with
+  `MURMUR_RUN_WHISPERKIT_DEFAULT_MODEL_E2E=1`.
 - Verify realtime partial metrics with the real transcription E2E path.
 - Verify OSLog metric routing compiles through package tests and the app target
   build.

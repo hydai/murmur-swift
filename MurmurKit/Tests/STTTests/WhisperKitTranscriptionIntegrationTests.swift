@@ -2,95 +2,119 @@ import Foundation
 import Testing
 @testable import MurmurKit
 
-@Suite("WhisperKit transcription integration")
+@Suite("WhisperKit transcription integration", .serialized)
 struct WhisperKitTranscriptionIntegrationTests {
     @Test("Provider emits realtime partial and final transcript for real audio")
     func providerEmitsRealtimePartialAndFinalTranscript() async throws {
-        guard ProcessInfo.processInfo.environment["MURMUR_RUN_WHISPERKIT_TRANSCRIPTION_E2E"] == "1" else {
+        guard Self.isEnabled("MURMUR_RUN_WHISPERKIT_TRANSCRIPTION_E2E") else {
             return
         }
 
-        let previousHome = ProcessInfo.processInfo.environment["CFFIXED_USER_HOME"]
-        let tempHome = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("murmur-whisperkit-transcription-e2e-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(
-            at: tempHome.appendingPathComponent("Documents"),
-            withIntermediateDirectories: true
-        )
-        setenv("CFFIXED_USER_HOME", tempHome.path, 1)
-        defer {
-            if let previousHome {
-                setenv("CFFIXED_USER_HOME", previousHome, 1)
-            } else {
-                unsetenv("CFFIXED_USER_HOME")
+        try await withTemporaryFixedUserHome(prefix: "murmur-whisperkit-transcription-e2e") {
+            let config = Self.tinyRemoteConfig()
+            let runtimeStore = WhisperKitRuntimeStore()
+            try await runtimeStore.preload(config: config) { status in
+                print("[WhisperKit transcription E2E] preload status=\(status)")
             }
-            try? FileManager.default.removeItem(at: tempHome)
+
+            let run = try await runProviderTranscription(
+                fixture: .jfkRealtime,
+                config: config,
+                runtimeStore: runtimeStore
+            )
+
+            assertTranscript(run.events, contains: ["my fellow americans", "your country"])
+            #expect(run.events.containsPartial)
+            #expect(run.metrics.containsFirstPartialLatency)
+            #expect(run.metrics.containsFinalPassFinished)
+            #expect(run.metrics.containsRuntimeCacheHit)
+            #expect(run.metrics.containsRuntimeTranscriptionFinished)
+
+            await runtimeStore.evict(config: config)
+        }
+    }
+
+    @Test("Provider covers expanded tiny model transcription matrix")
+    func providerCoversExpandedTinyModelTranscriptionMatrix() async throws {
+        guard Self.isEnabled("MURMUR_RUN_WHISPERKIT_TRANSCRIPTION_MATRIX_E2E") else {
+            return
         }
 
-        let config = WhisperKitSttConfig(
-            model: "tiny",
-            modelRepo: ProviderDefaults.whisperKitModelRepo,
-            modelFolder: "",
-            prewarm: false
-        )
-        let runtimeStore = WhisperKitRuntimeStore()
-        try await runtimeStore.preload(config: config) { status in
-            print("[WhisperKit transcription E2E] preload status=\(status)")
+        try await withTemporaryFixedUserHome(prefix: "murmur-whisperkit-transcription-matrix-e2e") {
+            let config = Self.tinyRemoteConfig()
+            let runtimeStore = WhisperKitRuntimeStore()
+            try await runtimeStore.preload(config: config) { status in
+                print("[WhisperKit matrix E2E] preload status=\(status)")
+            }
+
+            let fixtures: [WhisperKitAudioFixture] = [
+                .jfkRealtime,
+                WhisperKitAudioFixture(
+                    name: "spanish explicit",
+                    audioFile: "es_test_clip.wav",
+                    language: "es",
+                    expectedPhrases: ["esta es una"]
+                ),
+                WhisperKitAudioFixture(
+                    name: "spanish auto",
+                    audioFile: "es_test_clip.wav",
+                    language: nil,
+                    expectedPhrases: ["esta es una"]
+                ),
+                WhisperKitAudioFixture(
+                    name: "japanese explicit",
+                    audioFile: "ja_test_clip.wav",
+                    language: "ja",
+                    expectedPhrases: ["\u{6771}\u{4EAC}"]
+                ),
+            ]
+
+            for fixture in fixtures {
+                let run = try await runProviderTranscription(
+                    fixture: fixture,
+                    config: config,
+                    runtimeStore: runtimeStore
+                )
+                assertTranscript(run.events, contains: fixture.expectedPhrases)
+                #expect(run.metrics.containsFinalPassFinished)
+                #expect(run.metrics.containsRuntimeTranscriptionFinished)
+            }
+
+            try await verifyLocalModelFolderTranscription(from: config)
+
+            await runtimeStore.evict(config: config)
+        }
+    }
+
+    @Test("Provider transcribes with production default model")
+    func providerTranscribesWithProductionDefaultModel() async throws {
+        guard Self.isEnabled("MURMUR_RUN_WHISPERKIT_DEFAULT_MODEL_E2E") else {
+            return
         }
 
-        let samples = try loadJfkSamples()
-        let metrics = ProviderMetricRecorder()
-        let provider = WhisperKitProvider(
-            config: config,
-            language: "en",
-            runtimeStore: runtimeStore,
-            realtimeOptions: WhisperKitRealtimeOptions(
-                intervalMilliseconds: 250,
-                minimumSamples: 16000,
-                requiredSegmentsForConfirmation: 2
-            ),
-            onMetric: { metric in
-                metrics.append(metric)
-                print("[WhisperKit transcription E2E] metric=\(metric)")
+        try await withTemporaryFixedUserHome(prefix: "murmur-whisperkit-default-model-e2e") {
+            let config = WhisperKitSttConfig()
+            let runtimeStore = WhisperKitRuntimeStore()
+            try await runtimeStore.preload(config: config) { status in
+                print("[WhisperKit default model E2E] preload status=\(status)")
             }
-        )
-        let recorder = TranscriptionEventRecorder()
-        let collector = Task {
-            for await event in provider.events {
-                await recorder.append(event)
-                print("[WhisperKit transcription E2E] event=\(event)")
-            }
+
+            let run = try await runProviderTranscription(
+                fixture: WhisperKitAudioFixture(
+                    name: "default model JFK",
+                    audioFile: "jfk.wav",
+                    language: "en",
+                    expectedPhrases: ["my fellow americans", "your country"]
+                ),
+                config: config,
+                runtimeStore: runtimeStore
+            )
+            assertTranscript(run.events, contains: ["my fellow americans", "your country"])
+            #expect(run.metrics.containsFinalPassFinished)
+            #expect(run.metrics.containsRuntimeTranscriptionFinished)
+
+            await runtimeStore.evict(config: config)
         }
-
-        try await provider.startSession()
-
-        let firstPassSamples = Array(samples.prefix(16000 * 4))
-        try await provider.sendAudio(AudioChunk(data: firstPassSamples, timestampMs: 0))
-        let partialSeen = await waitForPartialOrError(in: recorder, timeoutSeconds: 30)
-        #expect(partialSeen)
-
-        let remainingSamples = Array(samples.dropFirst(firstPassSamples.count))
-        try await provider.sendAudio(AudioChunk(data: remainingSamples, timestampMs: UInt64(firstPassSamples.count) * 1000 / 16000))
-        try await provider.stopSession()
-        await collector.value
-
-        let events = await recorder.snapshot()
-        #expect(!events.containsError)
-        #expect(events.containsPartial)
-        #expect(!events.transcriptText.contains("<|"))
-
-        let finalTranscript = events.committedTranscript
-        let normalizedTranscript = normalize(finalTranscript)
-        #expect(normalizedTranscript.contains("my fellow americans"))
-        #expect(normalizedTranscript.contains("your country"))
-
-        let capturedMetrics = metrics.snapshot()
-        #expect(capturedMetrics.containsFirstPartialLatency)
-        #expect(capturedMetrics.containsFinalPassFinished)
-        #expect(capturedMetrics.containsRuntimeCacheHit)
-        #expect(capturedMetrics.containsRuntimeTranscriptionFinished)
-
-        await runtimeStore.evict(config: config)
     }
 
     private func waitForPartialOrError(
@@ -111,14 +135,132 @@ struct WhisperKitTranscriptionIntegrationTests {
         return false
     }
 
-    private func loadJfkSamples() throws -> [Int16] {
+    private func runProviderTranscription(
+        fixture: WhisperKitAudioFixture,
+        config: WhisperKitSttConfig,
+        runtimeStore: WhisperKitRuntimeStore
+    ) async throws -> (events: [TranscriptionEvent], metrics: [WhisperKitProviderMetric]) {
+        let samples = try loadFixtureSamples(fixture.audioFile)
+        let metrics = ProviderMetricRecorder()
+        let provider = WhisperKitProvider(
+            config: config,
+            language: fixture.language,
+            runtimeStore: runtimeStore,
+            realtimeOptions: WhisperKitRealtimeOptions(
+                intervalMilliseconds: 250,
+                minimumSamples: 16000,
+                requiredSegmentsForConfirmation: 2
+            ),
+            onMetric: { metric in
+                metrics.append(metric)
+                print("[WhisperKit transcription E2E][\(fixture.name)] metric=\(metric)")
+            }
+        )
+        let recorder = TranscriptionEventRecorder()
+        let collector = Task {
+            for await event in provider.events {
+                await recorder.append(event)
+                print("[WhisperKit transcription E2E][\(fixture.name)] event=\(event)")
+            }
+        }
+
+        try await provider.startSession()
+
+        if let realtimePrefixSampleCount = fixture.realtimePrefixSampleCount {
+            let firstPassSamples = Array(samples.prefix(realtimePrefixSampleCount))
+            try await provider.sendAudio(AudioChunk(data: firstPassSamples, timestampMs: 0))
+            let partialSeen = await waitForPartialOrError(in: recorder, timeoutSeconds: 30)
+            #expect(partialSeen)
+
+            let remainingSamples = Array(samples.dropFirst(firstPassSamples.count))
+            try await sendSamples(remainingSamples, to: provider, startingAtSample: firstPassSamples.count)
+        } else {
+            try await sendSamples(samples, to: provider)
+        }
+
+        try await provider.stopSession()
+        await collector.value
+
+        return (await recorder.snapshot(), metrics.snapshot())
+    }
+
+    private func verifyLocalModelFolderTranscription(from remoteConfig: WhisperKitSttConfig) async throws {
+        let manager = WhisperKitModelManager()
+        let inventory = await manager.inventory(for: remoteConfig)
+        guard case .remoteCached(let cachedPath, _) = inventory.storageStatus else {
+            Issue.record("Expected tiny model to be cached before local-folder E2E, got \(inventory.storageStatus)")
+            return
+        }
+
+        let localConfig = WhisperKitSttConfig(
+            model: remoteConfig.model,
+            modelRepo: remoteConfig.modelRepo,
+            modelFolder: cachedPath,
+            prewarm: false
+        )
+        let localInventory = await manager.inventory(for: localConfig)
+        guard case .localReady = localInventory.storageStatus else {
+            Issue.record("Expected local model folder to be ready, got \(localInventory.storageStatus)")
+            return
+        }
+
+        let localRuntimeStore = WhisperKitRuntimeStore()
+        let run = try await runProviderTranscription(
+            fixture: WhisperKitAudioFixture(
+                name: "local model folder JFK",
+                audioFile: "jfk.wav",
+                language: "en",
+                expectedPhrases: ["my fellow americans", "your country"]
+            ),
+            config: localConfig,
+            runtimeStore: localRuntimeStore
+        )
+        assertTranscript(run.events, contains: ["my fellow americans", "your country"])
+        #expect(!run.metrics.containsRuntimeDownloadStarted)
+        #expect(run.metrics.containsRuntimeLoadFinished)
+
+        await localRuntimeStore.evict(config: localConfig)
+    }
+
+    private func sendSamples(
+        _ samples: [Int16],
+        to provider: WhisperKitProvider,
+        startingAtSample: Int = 0,
+        chunkSize: Int = 8000
+    ) async throws {
+        guard !samples.isEmpty else { return }
+
+        var offset = 0
+        while offset < samples.count {
+            let end = min(offset + chunkSize, samples.count)
+            let chunk = Array(samples[offset..<end])
+            let absoluteSampleOffset = startingAtSample + offset
+            try await provider.sendAudio(AudioChunk(
+                data: chunk,
+                timestampMs: UInt64(absoluteSampleOffset) * 1000 / 16000
+            ))
+            offset = end
+        }
+    }
+
+    private func assertTranscript(_ events: [TranscriptionEvent], contains expectedPhrases: [String]) {
+        #expect(!events.containsError)
+        #expect(!events.transcriptText.contains("<|"))
+
+        let normalizedTranscript = normalize(events.committedTranscript)
+        for phrase in expectedPhrases {
+            #expect(normalizedTranscript.contains(normalize(phrase)))
+        }
+    }
+
+    private func loadFixtureSamples(_ filename: String) throws -> [Int16] {
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let url = packageRoot.appendingPathComponent(
-            ".build/checkouts/argmax-oss-swift/Tests/WhisperKitTests/Resources/jfk.wav"
-        )
+        let url = packageRoot
+            .appendingPathComponent(".build/checkouts/argmax-oss-swift/Tests/WhisperKitTests/Resources")
+            .appendingPathComponent(filename)
         return try loadMono16kInt16Wav(from: url)
     }
 
@@ -195,6 +337,72 @@ struct WhisperKitTranscriptionIntegrationTests {
             .split(separator: " ")
             .joined(separator: " ")
     }
+
+    private func withTemporaryFixedUserHome<T>(
+        prefix: String,
+        operation: () async throws -> T
+    ) async throws -> T {
+        let previousHome = ProcessInfo.processInfo.environment["CFFIXED_USER_HOME"]
+        let tempHome = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("\(prefix)-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: tempHome.appendingPathComponent("Documents"),
+            withIntermediateDirectories: true
+        )
+        setenv("CFFIXED_USER_HOME", tempHome.path, 1)
+        defer {
+            if let previousHome {
+                setenv("CFFIXED_USER_HOME", previousHome, 1)
+            } else {
+                unsetenv("CFFIXED_USER_HOME")
+            }
+            try? FileManager.default.removeItem(at: tempHome)
+        }
+        return try await operation()
+    }
+
+    private static func tinyRemoteConfig() -> WhisperKitSttConfig {
+        WhisperKitSttConfig(
+            model: "tiny",
+            modelRepo: ProviderDefaults.whisperKitModelRepo,
+            modelFolder: "",
+            prewarm: false
+        )
+    }
+
+    private static func isEnabled(_ environmentVariable: String) -> Bool {
+        ProcessInfo.processInfo.environment[environmentVariable] == "1"
+    }
+}
+
+private struct WhisperKitAudioFixture {
+    var name: String
+    var audioFile: String
+    var language: String?
+    var expectedPhrases: [String]
+    var realtimePrefixSampleCount: Int?
+
+    static let jfkRealtime = WhisperKitAudioFixture(
+        name: "JFK realtime",
+        audioFile: "jfk.wav",
+        language: "en",
+        expectedPhrases: ["my fellow americans", "your country"],
+        realtimePrefixSampleCount: 16000 * 4
+    )
+
+    init(
+        name: String,
+        audioFile: String,
+        language: String?,
+        expectedPhrases: [String],
+        realtimePrefixSampleCount: Int? = nil
+    ) {
+        self.name = name
+        self.audioFile = audioFile
+        self.language = language
+        self.expectedPhrases = expectedPhrases
+        self.realtimePrefixSampleCount = realtimePrefixSampleCount
+    }
 }
 
 private actor TranscriptionEventRecorder {
@@ -252,6 +460,24 @@ private extension [WhisperKitProviderMetric] {
     var containsRuntimeCacheHit: Bool {
         contains { metric in
             if case .runtime(.cacheHit(key: _)) = metric {
+                return true
+            }
+            return false
+        }
+    }
+
+    var containsRuntimeDownloadStarted: Bool {
+        contains { metric in
+            if case .runtime(.downloadStarted(key: _)) = metric {
+                return true
+            }
+            return false
+        }
+    }
+
+    var containsRuntimeLoadFinished: Bool {
+        contains { metric in
+            if case .runtime(.loadFinished(key: _, durationMs: _)) = metric {
                 return true
             }
             return false
