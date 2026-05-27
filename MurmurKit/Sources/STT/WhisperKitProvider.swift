@@ -26,6 +26,7 @@ public enum WhisperKitProviderMetric: Sendable, Equatable {
     case realtimePassStarted(sampleCount: Int, confirmedEndSeconds: Float)
     case realtimePassFinished(sampleCount: Int, segmentCount: Int, emittedEventCount: Int, durationMs: UInt64)
     case realtimePassFailed(sampleCount: Int, durationMs: UInt64, message: String)
+    case realtimePassCancelled(sampleCount: Int, durationMs: UInt64)
     case firstPartialLatency(durationMs: UInt64)
     case finalPassStarted(sampleCount: Int, confirmedEndSeconds: Float)
     case finalPassFinished(segmentCount: Int, emittedEventCount: Int, durationMs: UInt64)
@@ -57,6 +58,7 @@ public actor WhisperKitProvider: SttProvider {
     private var committedEventCount = 0
     private var errorEventCount = 0
     private var hasSeenFirstPartial = false
+    private var sessionGeneration = 0
 
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
@@ -80,6 +82,8 @@ public actor WhisperKitProvider: SttProvider {
     }
 
     public func startSession() async throws {
+        sessionGeneration += 1
+        let generation = sessionGeneration
         sampleBuffer = []
         isStopping = false
         lastRealtimeSampleCount = 0
@@ -100,7 +104,7 @@ public actor WhisperKitProvider: SttProvider {
         ))
         streamTask?.cancel()
         streamTask = Task { [weak self] in
-            await self?.runRealtimeLoop()
+            await self?.runRealtimeLoop(generation: generation)
         }
     }
 
@@ -126,6 +130,7 @@ public actor WhisperKitProvider: SttProvider {
         }
 
         isStopping = true
+        sessionGeneration += 1
         streamTask?.cancel()
         streamTask = nil
 
@@ -146,6 +151,7 @@ public actor WhisperKitProvider: SttProvider {
                 config: config,
                 language: language,
                 clipStartSeconds: realtimeState.confirmedEndSeconds,
+                priority: .final,
                 onStatus: { _ in },
                 onMetric: runtimeMetricHandler()
             )
@@ -173,7 +179,7 @@ public actor WhisperKitProvider: SttProvider {
         }
     }
 
-    private func runRealtimeLoop() async {
+    private func runRealtimeLoop(generation: Int) async {
         while !Task.isCancelled {
             do {
                 try await Task.sleep(for: realtimeOptions.interval)
@@ -181,7 +187,7 @@ public actor WhisperKitProvider: SttProvider {
                 return
             }
 
-            if Task.isCancelled || isStopping { return }
+            if Task.isCancelled || isStopping || generation != sessionGeneration { return }
 
             let snapshot = realtimeSnapshot()
             guard let snapshot else { continue }
@@ -198,10 +204,15 @@ public actor WhisperKitProvider: SttProvider {
                     config: config,
                     language: language,
                     clipStartSeconds: snapshot.confirmedEndSeconds,
+                    priority: .realtime,
                     onStatus: { _ in },
                     onMetric: runtimeMetricHandler()
                 )
-                let events = realtimeEvents(segments, sampleCount: snapshot.sampleCount)
+                let events = realtimeEvents(
+                    segments,
+                    sampleCount: snapshot.sampleCount,
+                    generation: generation
+                )
                 emitMetric(.realtimePassFinished(
                     sampleCount: snapshot.sampleCount,
                     segmentCount: segments.count,
@@ -212,6 +223,10 @@ public actor WhisperKitProvider: SttProvider {
                     emit(event)
                 }
             } catch is CancellationError {
+                emitMetric(.realtimePassCancelled(
+                    sampleCount: snapshot.sampleCount,
+                    durationMs: Self.elapsedMilliseconds(since: startedAt)
+                ))
                 return
             } catch {
                 if !isStopping {
@@ -240,9 +255,10 @@ public actor WhisperKitProvider: SttProvider {
 
     private func realtimeEvents(
         _ segments: [WhisperKitTranscriptSegment],
-        sampleCount: Int
+        sampleCount: Int,
+        generation: Int
     ) -> [TranscriptionEvent] {
-        guard !isStopping else { return [] }
+        guard !isStopping, generation == sessionGeneration else { return [] }
         lastRealtimeSampleCount = sampleCount
         return realtimeState.handleHypothesis(segments)
     }

@@ -35,6 +35,23 @@ public enum WhisperKitRuntimeMetric: Sendable, Equatable {
     case transcriptionFailed(key: WhisperKitRuntimeKey, durationMs: UInt64, message: String)
 }
 
+enum WhisperKitTranscriptionPriority: Sendable, Equatable {
+    case realtime
+    case standard
+    case final
+
+    fileprivate var rank: Int {
+        switch self {
+        case .realtime:
+            return 0
+        case .standard:
+            return 1
+        case .final:
+            return 2
+        }
+    }
+}
+
 /// Cache key for reusable native WhisperKit runtimes.
 public struct WhisperKitRuntimeKey: Sendable, Hashable {
     public let model: String
@@ -85,9 +102,15 @@ public actor WhisperKitRuntimeStore {
         }
     }
 
+    private struct Waiter {
+        var id: UUID
+        var priority: WhisperKitTranscriptionPriority
+        var continuation: CheckedContinuation<Void, Error>
+    }
+
     private var entries: [WhisperKitRuntimeKey: Entry] = [:]
     private var busyKeys: Set<WhisperKitRuntimeKey> = []
-    private var waiters: [WhisperKitRuntimeKey: [CheckedContinuation<Void, Never>]] = [:]
+    private var waiters: [WhisperKitRuntimeKey: [Waiter]] = [:]
 
     public init() {}
 
@@ -123,8 +146,9 @@ public actor WhisperKitRuntimeStore {
         let key = WhisperKitRuntimeKey(config: config)
         let box = try await runtime(for: config, onStatus: onStatus, onMetric: onMetric)
 
-        await acquire(key)
+        try await acquire(key, priority: .standard)
         defer { release(key) }
+        try Task.checkCancellation()
 
         let options = Self.decodingOptions(language: language)
         let startedAt = Date()
@@ -159,14 +183,16 @@ public actor WhisperKitRuntimeStore {
         config: WhisperKitSttConfig,
         language: String?,
         clipStartSeconds: Float? = nil,
+        priority: WhisperKitTranscriptionPriority = .standard,
         onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in },
         onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void = { _ in }
     ) async throws -> [WhisperKitTranscriptSegment] {
         let key = WhisperKitRuntimeKey(config: config)
         let box = try await runtime(for: config, onStatus: onStatus, onMetric: onMetric)
 
-        await acquire(key)
+        try await acquire(key, priority: priority)
         defer { release(key) }
+        try Task.checkCancellation()
 
         let options = Self.decodingOptions(language: language, clipStartSeconds: clipStartSeconds)
 
@@ -210,6 +236,21 @@ public actor WhisperKitRuntimeStore {
         entries.removeAll()
         busyKeys.removeAll()
         waiters.removeAll()
+    }
+
+    func waiterCountForTesting(for key: WhisperKitRuntimeKey) -> Int {
+        waiters[key]?.count ?? 0
+    }
+
+    func withTranscriptionSlotForTesting<T: Sendable>(
+        key: WhisperKitRuntimeKey,
+        priority: WhisperKitTranscriptionPriority,
+        operation: @Sendable () async throws -> T
+    ) async throws -> T {
+        try await acquire(key, priority: priority)
+        defer { release(key) }
+        try Task.checkCancellation()
+        return try await operation()
     }
 
     private func runtime(
@@ -275,22 +316,79 @@ public actor WhisperKitRuntimeStore {
         entries[key] = entry
     }
 
-    private func acquire(_ key: WhisperKitRuntimeKey) async {
-        while busyKeys.contains(key) {
-            await withCheckedContinuation { continuation in
-                waiters[key, default: []].append(continuation)
+    private func acquire(
+        _ key: WhisperKitRuntimeKey,
+        priority: WhisperKitTranscriptionPriority
+    ) async throws {
+        var ownsSlot = false
+        do {
+            try Task.checkCancellation()
+
+            if !busyKeys.contains(key), waiters[key, default: []].isEmpty {
+                busyKeys.insert(key)
+                ownsSlot = true
+                return
             }
+
+            let waiterID = UUID()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    waiters[key, default: []].append(Waiter(
+                        id: waiterID,
+                        priority: priority,
+                        continuation: continuation
+                    ))
+                }
+            } onCancel: {
+                Task { await self.cancelWaiter(waiterID, for: key) }
+            }
+
+            ownsSlot = true
+            try Task.checkCancellation()
+        } catch {
+            if ownsSlot {
+                release(key)
+            }
+            throw error
         }
-        busyKeys.insert(key)
     }
 
     private func release(_ key: WhisperKitRuntimeKey) {
-        busyKeys.remove(key)
-        if var keyWaiters = waiters[key], !keyWaiters.isEmpty {
-            let next = keyWaiters.removeFirst()
-            waiters[key] = keyWaiters.isEmpty ? nil : keyWaiters
-            next.resume()
+        guard let next = removeNextWaiter(for: key) else {
+            busyKeys.remove(key)
+            return
         }
+
+        busyKeys.insert(key)
+        next.continuation.resume()
+    }
+
+    private func cancelWaiter(_ waiterID: UUID, for key: WhisperKitRuntimeKey) {
+        guard var keyWaiters = waiters[key],
+              let index = keyWaiters.firstIndex(where: { $0.id == waiterID })
+        else {
+            return
+        }
+
+        let waiter = keyWaiters.remove(at: index)
+        waiters[key] = keyWaiters.isEmpty ? nil : keyWaiters
+        waiter.continuation.resume(throwing: CancellationError())
+
+        if !busyKeys.contains(key), let next = removeNextWaiter(for: key) {
+            busyKeys.insert(key)
+            next.continuation.resume()
+        }
+    }
+
+    private func removeNextWaiter(for key: WhisperKitRuntimeKey) -> Waiter? {
+        guard var keyWaiters = waiters[key], !keyWaiters.isEmpty else { return nil }
+
+        let nextIndex = keyWaiters.indices.max { lhs, rhs in
+            keyWaiters[lhs].priority.rank < keyWaiters[rhs].priority.rank
+        } ?? keyWaiters.startIndex
+        let next = keyWaiters.remove(at: nextIndex)
+        waiters[key] = keyWaiters.isEmpty ? nil : keyWaiters
+        return next
     }
 
     private static func makeRuntime(

@@ -56,6 +56,13 @@ public enum WhisperKitMetricLogger {
                 duration_ms=\(durationMs) error=\(message, privacy: .private)
                 """
             )
+        case .realtimePassCancelled(let sampleCount, let durationMs):
+            providerLogger.debug(
+                """
+                realtime_pass_cancelled sample_count=\(sampleCount) \
+                duration_ms=\(durationMs)
+                """
+            )
         case .firstPartialLatency(let durationMs):
             providerLogger.info("first_partial_latency duration_ms=\(durationMs)")
         case .finalPassStarted(let sampleCount, let confirmedEndSeconds):
