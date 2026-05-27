@@ -228,6 +228,9 @@ Float(sample) / Float(Int16.max)
   models.
 - Add unit tests for model-name normalization, local folder validation, and
   cache-size display.
+- Add an opt-in integration test for real tiny-model download, cache detection,
+  targeted cache deletion, and sibling-folder preservation under a temporary
+  home.
 - Run package tests.
 
 ## Acceptance Criteria
