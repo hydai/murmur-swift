@@ -84,6 +84,7 @@ final class SettingsViewModel {
     var whisperKitKnownModels: [String] = []
     var whisperKitModelManagementError: String?
     var isDeletingWhisperKitCachedModel: Bool = false
+    var whisperKitDiagnostics = WhisperKitDiagnosticsSnapshot()
     private let whisperKitRuntimeStore = WhisperKitRuntimeStore.shared
     private let whisperKitModelManager = WhisperKitModelManager()
     private var whisperKitPreloadTask: Task<Void, Never>?
@@ -140,6 +141,7 @@ final class SettingsViewModel {
         dictionaryEntries = config.personalDictionary.entries
         await refreshWhisperKitModelInventory()
         await refreshWhisperKitModelStatus()
+        refreshWhisperKitDiagnostics()
     }
 
     // MARK: - Save
@@ -451,6 +453,15 @@ final class SettingsViewModel {
         Task { await saveConfig() }
     }
 
+    func refreshWhisperKitDiagnostics() {
+        whisperKitDiagnostics = WhisperKitDiagnosticsStore.shared.snapshot
+    }
+
+    func resetWhisperKitDiagnostics() {
+        WhisperKitDiagnosticsStore.shared.reset()
+        refreshWhisperKitDiagnostics()
+    }
+
     func deleteWhisperKitCachedModel() async {
         guard case .remoteCached = whisperKitStorageStatus else {
             whisperKitModelManagementError = "Only cached remote models can be deleted here. Custom local folders are never deleted by Murmur."
@@ -577,7 +588,7 @@ final class SettingsViewModel {
                         self?.whisperKitModelStatus = status
                     }
                 },
-                onMetric: { WhisperKitMetricLogger.log($0) }
+                onMetric: { WhisperKitDiagnosticsRecorder.record($0) }
             )
             whisperKitModelStatus = .ready
             await refreshWhisperKitModelInventory()

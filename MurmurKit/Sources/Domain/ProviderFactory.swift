@@ -4,9 +4,16 @@ import Foundation
 /// This decouples the instantiation logic from the ViewModel or UI layer.
 public struct ProviderFactory: Sendable {
     private let configDir: URL
+    private let whisperKitMetricHandler: @Sendable (WhisperKitProviderMetric) -> Void
 
-    public init(configDir: URL = ConfigManager.defaultDirectory) {
+    public init(
+        configDir: URL = ConfigManager.defaultDirectory,
+        whisperKitMetricHandler: @escaping @Sendable (WhisperKitProviderMetric) -> Void = {
+            WhisperKitMetricLogger.log($0)
+        }
+    ) {
         self.configDir = configDir
+        self.whisperKitMetricHandler = whisperKitMetricHandler
     }
 
     /// Creates an STT provider from the current configuration.
@@ -23,7 +30,7 @@ public struct ProviderFactory: Sendable {
                 config: config.whisperKitSttConfig,
                 language: lang,
                 realtimeOptions: config.whisperKitSttConfig.realtimeOptions,
-                onMetric: { WhisperKitMetricLogger.log($0) }
+                onMetric: whisperKitMetricHandler
             )
         case .elevenLabs:
             let key = config.apiKeys[ProviderDefaults.ApiKey.elevenLabs] ?? ""

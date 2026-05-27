@@ -36,7 +36,9 @@ final class PipelineViewModel {
     // MARK: - Internal
     private let orchestrator = PipelineOrchestrator()
     let configManager = ConfigManager()
-    private let providerFactory = ProviderFactory()
+    private let providerFactory = ProviderFactory(
+        whisperKitMetricHandler: { WhisperKitDiagnosticsRecorder.record($0) }
+    )
     private var eventTask: Task<Void, Never>?
     private var whisperKitPreloadTask: Task<Void, Never>?
 
@@ -128,7 +130,7 @@ final class PipelineViewModel {
             guard !Task.isCancelled else { return }
             try? await WhisperKitRuntimeStore.shared.preload(
                 config: whisperConfig,
-                onMetric: { WhisperKitMetricLogger.log($0) }
+                onMetric: { WhisperKitDiagnosticsRecorder.record($0) }
             )
         }
     }

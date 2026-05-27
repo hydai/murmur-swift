@@ -50,6 +50,39 @@ struct ProviderFactoryTests {
         }
     }
 
+    @Test("WhisperKit STT provider forwards injected metrics")
+    func whisperKitProviderForwardsInjectedMetrics() async throws {
+        let recorder = ProviderMetricRecorder()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let factory = ProviderFactory(
+            configDir: tempDir,
+            whisperKitMetricHandler: { recorder.append($0) }
+        )
+        var config = AppConfig()
+        config.sttProvider = .whisperKit
+
+        let provider = factory.createSttProvider(from: config)
+        try await provider.startSession()
+        try await provider.stopSession()
+
+        let metrics = recorder.snapshot()
+        #expect(metrics.contains { metric in
+            if case .sessionStarted = metric {
+                return true
+            }
+            return false
+        })
+        #expect(metrics.contains { metric in
+            if case .sessionFinished = metric {
+                return true
+            }
+            return false
+        })
+    }
+
     @Test("LLM processor mapping")
     func testLlmProcessorMapping() async throws {
         try await withTempFactory { factory in
@@ -102,5 +135,22 @@ struct ProviderFactoryTests {
                 #expect(modelValue == "custom-override-model")
             }
         }
+    }
+}
+
+private final class ProviderMetricRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var metrics: [WhisperKitProviderMetric] = []
+
+    func append(_ metric: WhisperKitProviderMetric) {
+        lock.lock()
+        defer { lock.unlock() }
+        metrics.append(metric)
+    }
+
+    func snapshot() -> [WhisperKitProviderMetric] {
+        lock.lock()
+        defer { lock.unlock() }
+        return metrics
     }
 }

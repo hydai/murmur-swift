@@ -145,6 +145,8 @@ struct ProviderSettingsView: View {
                 .font(.caption).foregroundStyle(.secondary)
             Divider().padding(.vertical, Spacing.xs)
             WhisperKitModelStatusView(viewModel: viewModel)
+            Divider().padding(.vertical, Spacing.xs)
+            WhisperKitDiagnosticsView(viewModel: viewModel)
         case .elevenLabs:
             SettingsInput(label: "ElevenLabs API key", placeholder: "xi-...", text: $viewModel.elevenLabsKey, isSecure: true)
         case .openAI:

@@ -241,6 +241,9 @@ Float(sample) / Float(Int16.max)
   through `ProviderFactory`.
 - Route provider and runtime metrics from recording, manual load, and automatic
   prewarm paths to OSLog.
+- Surface the latest provider/runtime diagnostics in Settings so recent
+  download, load, transcription, first-partial, cache-hit, and error metrics are
+  visible without opening Console.
 
 ### Phase 4: Documentation and Tests
 
@@ -267,6 +270,8 @@ Float(sample) / Float(Int16.max)
 - Verify realtime partial metrics with the real transcription E2E path.
 - Verify OSLog metric routing compiles through package tests and the app target
   build.
+- Verify the app diagnostics recorder receives provider metrics through
+  `ProviderFactory`.
 - Run package tests.
 
 ## Acceptance Criteria
