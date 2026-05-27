@@ -19,7 +19,11 @@ public struct ProviderFactory: Sendable {
             let locale = config.appleSttLocale == "auto" ? nil : Locale(identifier: config.appleSttLocale)
             return AppleSttProvider(locale: locale)
         case .whisperKit:
-            return WhisperKitProvider(config: config.whisperKitSttConfig, language: lang)
+            return WhisperKitProvider(
+                config: config.whisperKitSttConfig,
+                language: lang,
+                realtimeOptions: config.whisperKitSttConfig.realtimeOptions
+            )
         case .elevenLabs:
             let key = config.apiKeys[ProviderDefaults.ApiKey.elevenLabs] ?? ""
             let elevenLabsLang: String? = lang.flatMap { ElevenLabsLanguages.iso639_3(for: $0) ?? $0 }

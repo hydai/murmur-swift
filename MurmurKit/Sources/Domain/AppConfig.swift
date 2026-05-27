@@ -40,17 +40,75 @@ public struct WhisperKitSttConfig: Codable, Sendable, Equatable {
     public var modelRepo: String
     public var modelFolder: String
     public var prewarm: Bool
+    public var realtimeIntervalMilliseconds: Int
+    public var realtimeMinimumSamples: Int
+    public var realtimeRequiredSegmentsForConfirmation: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case model
+        case modelRepo
+        case modelFolder
+        case prewarm
+        case realtimeIntervalMilliseconds
+        case realtimeMinimumSamples
+        case realtimeRequiredSegmentsForConfirmation
+    }
 
     public init(
         model: String = ProviderDefaults.whisperKitSttModel,
         modelRepo: String = ProviderDefaults.whisperKitModelRepo,
         modelFolder: String = "",
-        prewarm: Bool = false
+        prewarm: Bool = false,
+        realtimeIntervalMilliseconds: Int = WhisperKitRealtimeOptions().intervalMilliseconds,
+        realtimeMinimumSamples: Int = WhisperKitRealtimeOptions().minimumSamples,
+        realtimeRequiredSegmentsForConfirmation: Int = WhisperKitRealtimeOptions().requiredSegmentsForConfirmation
     ) {
+        let realtimeOptions = WhisperKitRealtimeOptions(
+            intervalMilliseconds: realtimeIntervalMilliseconds,
+            minimumSamples: realtimeMinimumSamples,
+            requiredSegmentsForConfirmation: realtimeRequiredSegmentsForConfirmation
+        )
         self.model = model
         self.modelRepo = modelRepo
         self.modelFolder = modelFolder
         self.prewarm = prewarm
+        self.realtimeIntervalMilliseconds = realtimeOptions.intervalMilliseconds
+        self.realtimeMinimumSamples = realtimeOptions.minimumSamples
+        self.realtimeRequiredSegmentsForConfirmation = realtimeOptions.requiredSegmentsForConfirmation
+    }
+
+    public var realtimeOptions: WhisperKitRealtimeOptions {
+        WhisperKitRealtimeOptions(
+            intervalMilliseconds: realtimeIntervalMilliseconds,
+            minimumSamples: realtimeMinimumSamples,
+            requiredSegmentsForConfirmation: realtimeRequiredSegmentsForConfirmation
+        )
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            model: try container.decodeIfPresent(String.self, forKey: .model)
+                ?? ProviderDefaults.whisperKitSttModel,
+            modelRepo: try container.decodeIfPresent(String.self, forKey: .modelRepo)
+                ?? ProviderDefaults.whisperKitModelRepo,
+            modelFolder: try container.decodeIfPresent(String.self, forKey: .modelFolder)
+                ?? "",
+            prewarm: try container.decodeIfPresent(Bool.self, forKey: .prewarm)
+                ?? false,
+            realtimeIntervalMilliseconds: try container.decodeIfPresent(
+                Int.self,
+                forKey: .realtimeIntervalMilliseconds
+            ) ?? WhisperKitRealtimeOptions().intervalMilliseconds,
+            realtimeMinimumSamples: try container.decodeIfPresent(
+                Int.self,
+                forKey: .realtimeMinimumSamples
+            ) ?? WhisperKitRealtimeOptions().minimumSamples,
+            realtimeRequiredSegmentsForConfirmation: try container.decodeIfPresent(
+                Int.self,
+                forKey: .realtimeRequiredSegmentsForConfirmation
+            ) ?? WhisperKitRealtimeOptions().requiredSegmentsForConfirmation
+        )
     }
 }
 

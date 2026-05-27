@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import MurmurKit
 #if os(macOS)
@@ -20,6 +21,9 @@ final class SettingsViewModel {
     var whisperKitModelRepo: String = ProviderDefaults.whisperKitModelRepo
     var whisperKitModelFolder: String = ""
     var whisperKitPrewarm: Bool = false
+    var whisperKitRealtimeIntervalMilliseconds: Int = WhisperKitRealtimeOptions().intervalMilliseconds
+    var whisperKitRealtimeMinimumSamples: Int = WhisperKitRealtimeOptions().minimumSamples
+    var whisperKitRealtimeRequiredSegmentsForConfirmation: Int = WhisperKitRealtimeOptions().requiredSegmentsForConfirmation
     var opacity: Float = 0.9
     var showWaveform: Bool = true
     var theme: String = "dark"
@@ -112,6 +116,10 @@ final class SettingsViewModel {
         whisperKitModelRepo = config.whisperKitSttConfig.modelRepo
         whisperKitModelFolder = config.whisperKitSttConfig.modelFolder
         whisperKitPrewarm = config.whisperKitSttConfig.prewarm
+        whisperKitRealtimeIntervalMilliseconds = config.whisperKitSttConfig.realtimeIntervalMilliseconds
+        whisperKitRealtimeMinimumSamples = config.whisperKitSttConfig.realtimeMinimumSamples
+        whisperKitRealtimeRequiredSegmentsForConfirmation = config.whisperKitSttConfig
+            .realtimeRequiredSegmentsForConfirmation
         opacity = config.uiPreferences.opacity
         showWaveform = config.uiPreferences.showWaveform
         theme = config.uiPreferences.theme
@@ -177,7 +185,10 @@ final class SettingsViewModel {
                 model: whisperKitModel,
                 modelRepo: whisperKitModelRepo,
                 modelFolder: whisperKitModelFolder,
-                prewarm: whisperKitPrewarm
+                prewarm: whisperKitPrewarm,
+                realtimeIntervalMilliseconds: whisperKitRealtimeIntervalMilliseconds,
+                realtimeMinimumSamples: whisperKitRealtimeMinimumSamples,
+                realtimeRequiredSegmentsForConfirmation: whisperKitRealtimeRequiredSegmentsForConfirmation
             )
         )
 
@@ -432,6 +443,14 @@ final class SettingsViewModel {
         Task { await saveConfig() }
     }
 
+    func resetWhisperKitRealtimeOptions() {
+        let defaults = WhisperKitRealtimeOptions()
+        whisperKitRealtimeIntervalMilliseconds = defaults.intervalMilliseconds
+        whisperKitRealtimeMinimumSamples = defaults.minimumSamples
+        whisperKitRealtimeRequiredSegmentsForConfirmation = defaults.requiredSegmentsForConfirmation
+        Task { await saveConfig() }
+    }
+
     func deleteWhisperKitCachedModel() async {
         guard case .remoteCached = whisperKitStorageStatus else {
             whisperKitModelManagementError = "Only cached remote models can be deleted here. Custom local folders are never deleted by Murmur."
@@ -502,6 +521,25 @@ final class SettingsViewModel {
         WhisperKitModelManager.displaySize(whisperKitStorageStatus.sizeBytes)
     }
 
+    var whisperKitRealtimeIntervalText: String {
+        "\(whisperKitRealtimeIntervalMilliseconds) ms"
+    }
+
+    var whisperKitRealtimeMinimumAudioText: String {
+        let seconds = Double(whisperKitRealtimeMinimumSamples) / 16_000
+        return "\(whisperKitRealtimeMinimumSamples) samples (\(Self.oneDecimal(seconds)) s)"
+    }
+
+    var whisperKitRealtimeStableSegmentsText: String {
+        if whisperKitRealtimeRequiredSegmentsForConfirmation == 0 {
+            return "0 segments"
+        }
+        if whisperKitRealtimeRequiredSegmentsForConfirmation == 1 {
+            return "1 segment"
+        }
+        return "\(whisperKitRealtimeRequiredSegmentsForConfirmation) segments"
+    }
+
     var canDeleteWhisperKitCachedModel: Bool {
         if case .remoteCached = whisperKitStorageStatus {
             return !whisperKitModelStatus.isBusy && !isDeletingWhisperKitCachedModel
@@ -550,7 +588,10 @@ final class SettingsViewModel {
             model: whisperKitModel,
             modelRepo: whisperKitModelRepo,
             modelFolder: whisperKitModelFolder,
-            prewarm: whisperKitPrewarm
+            prewarm: whisperKitPrewarm,
+            realtimeIntervalMilliseconds: whisperKitRealtimeIntervalMilliseconds,
+            realtimeMinimumSamples: whisperKitRealtimeMinimumSamples,
+            realtimeRequiredSegmentsForConfirmation: whisperKitRealtimeRequiredSegmentsForConfirmation
         )
     }
 
@@ -576,6 +617,10 @@ final class SettingsViewModel {
             }
         }
         return result
+    }
+
+    private static func oneDecimal(_ value: Double) -> String {
+        String(format: "%.1f", value)
     }
 
     /// Which API key fields to show based on selected STT provider.

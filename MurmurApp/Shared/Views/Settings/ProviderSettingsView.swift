@@ -121,6 +121,26 @@ struct ProviderSettingsView: View {
                 .disabled(viewModel.whisperKitModelFolder.isEmpty)
             }
             Toggle("Prewarm model", isOn: $viewModel.whisperKitPrewarm)
+
+            Divider().padding(.vertical, Spacing.xs)
+            SectionHeader("Realtime partials")
+            Stepper(value: $viewModel.whisperKitRealtimeIntervalMilliseconds, in: 100...5_000, step: 100) {
+                StatusRow("Pass interval", value: viewModel.whisperKitRealtimeIntervalText)
+            }
+            Stepper(value: $viewModel.whisperKitRealtimeMinimumSamples, in: 1...96_000, step: 1_000) {
+                StatusRow("Minimum audio", value: viewModel.whisperKitRealtimeMinimumAudioText)
+            }
+            Stepper(value: $viewModel.whisperKitRealtimeRequiredSegmentsForConfirmation, in: 0...5) {
+                StatusRow("Stable segments", value: viewModel.whisperKitRealtimeStableSegmentsText)
+            }
+            HStack {
+                Button {
+                    viewModel.resetWhisperKitRealtimeOptions()
+                } label: {
+                    Label("Reset Defaults", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+            }
             Text("Runs native WhisperKit in-process. First use may download and compile Core ML model files.")
                 .font(.caption).foregroundStyle(.secondary)
             Divider().padding(.vertical, Spacing.xs)
@@ -176,6 +196,15 @@ private struct WhisperKitSaveOnChange: ViewModifier {
             .onChange(of: viewModel.whisperKitModelRepo) { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.whisperKitModelFolder) { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.whisperKitPrewarm)  { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.whisperKitRealtimeIntervalMilliseconds) { _, _ in
+                Task { await viewModel.saveConfig() }
+            }
+            .onChange(of: viewModel.whisperKitRealtimeMinimumSamples) { _, _ in
+                Task { await viewModel.saveConfig() }
+            }
+            .onChange(of: viewModel.whisperKitRealtimeRequiredSegmentsForConfirmation) { _, _ in
+                Task { await viewModel.saveConfig() }
+            }
     }
 }
 

@@ -23,6 +23,9 @@ struct AppConfigTests {
         #expect(config.whisperKitSttConfig.modelRepo == ProviderDefaults.whisperKitModelRepo)
         #expect(config.whisperKitSttConfig.modelFolder == "")
         #expect(config.whisperKitSttConfig.prewarm == false)
+        #expect(config.whisperKitSttConfig.realtimeIntervalMilliseconds == 1500)
+        #expect(config.whisperKitSttConfig.realtimeMinimumSamples == 16000)
+        #expect(config.whisperKitSttConfig.realtimeRequiredSegmentsForConfirmation == 2)
         #expect(config.apiKeys.isEmpty)
         #expect(config.personalDictionary.terms.isEmpty)
         #expect(config.personalDictionary.entries.isEmpty)
@@ -94,7 +97,10 @@ struct AppConfigTests {
             model: "tiny",
             modelRepo: "example/models",
             modelFolder: "/tmp/whisperkit",
-            prewarm: true
+            prewarm: true,
+            realtimeIntervalMilliseconds: 500,
+            realtimeMinimumSamples: 8000,
+            realtimeRequiredSegmentsForConfirmation: 1
         )
 
         let encoder = JSONEncoder()
@@ -113,6 +119,46 @@ struct AppConfigTests {
         #expect(decoded.whisperKitSttConfig.modelRepo == "example/models")
         #expect(decoded.whisperKitSttConfig.modelFolder == "/tmp/whisperkit")
         #expect(decoded.whisperKitSttConfig.prewarm == true)
+        #expect(decoded.whisperKitSttConfig.realtimeIntervalMilliseconds == 500)
+        #expect(decoded.whisperKitSttConfig.realtimeMinimumSamples == 8000)
+        #expect(decoded.whisperKitSttConfig.realtimeRequiredSegmentsForConfirmation == 1)
+        #expect(decoded.whisperKitSttConfig.realtimeOptions == WhisperKitRealtimeOptions(
+            intervalMilliseconds: 500,
+            minimumSamples: 8000,
+            requiredSegmentsForConfirmation: 1
+        ))
+    }
+
+    @Test("WhisperKit config without realtime fields decodes with defaults")
+    func whisperKitConfigWithoutRealtimeFieldsUsesDefaults() throws {
+        let json = """
+        {
+            "stt_provider": "whisperKit",
+            "api_keys": {},
+            "hotkey": "Ctrl+`",
+            "llm_processor": "appleLlm",
+            "output_mode": "clipboard",
+            "ui_preferences": {"opacity": 0.9, "show_waveform": true, "theme": "dark"},
+            "apple_stt_locale": "auto",
+            "personal_dictionary": {"terms": []},
+            "whisper_kit_stt_config": {
+                "model": "tiny",
+                "model_repo": "example/models",
+                "model_folder": "",
+                "prewarm": true
+            }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let config = try decoder.decode(AppConfig.self, from: json.data(using: .utf8)!)
+
+        #expect(config.whisperKitSttConfig.model == "tiny")
+        #expect(config.whisperKitSttConfig.prewarm)
+        #expect(config.whisperKitSttConfig.realtimeIntervalMilliseconds == 1500)
+        #expect(config.whisperKitSttConfig.realtimeMinimumSamples == 16000)
+        #expect(config.whisperKitSttConfig.realtimeRequiredSegmentsForConfirmation == 2)
     }
 
     @Test("New LlmProcessorType cases round-trip through JSON")

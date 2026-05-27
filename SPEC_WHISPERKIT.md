@@ -141,6 +141,9 @@ public struct WhisperKitSttConfig: Codable, Sendable {
     public var modelRepo: String
     public var modelFolder: String
     public var prewarm: Bool
+    public var realtimeIntervalMilliseconds: Int
+    public var realtimeMinimumSamples: Int
+    public var realtimeRequiredSegmentsForConfirmation: Int
 }
 ```
 
@@ -151,6 +154,9 @@ model: "large-v3-v20240930_626MB"
 modelRepo: "argmaxinc/whisperkit-coreml"
 modelFolder: ""
 prewarm: false
+realtimeIntervalMilliseconds: 1500
+realtimeMinimumSamples: 16000
+realtimeRequiredSegmentsForConfirmation: 2
 ```
 
 Add a provider enum case:
@@ -208,6 +214,8 @@ Float(sample) / Float(Int16.max)
 - Add model load status and a manual load button for WhisperKit.
 - Add selected-model cache status, cache size/path, refresh, open, delete,
   local folder picker, and local folder validation.
+- Add realtime partial tuning controls for pass interval, minimum buffered
+  samples, and stable segment confirmation count.
 
 ### Phase 3.5: Runtime Reuse and Preload
 
@@ -228,6 +236,8 @@ Float(sample) / Float(Int16.max)
 - Add realtime tuning options and metrics for first-partial latency,
   realtime/final pass duration, runtime cache reuse, model load, and native
   transcription duration.
+- Persist realtime tuning options in `WhisperKitSttConfig` and pass them
+  through `ProviderFactory`.
 
 ### Phase 4: Documentation and Tests
 
@@ -251,11 +261,14 @@ Float(sample) / Float(Int16.max)
 - `swift test --package-path MurmurKit` passes.
 - `ProviderFactory` returns `WhisperKitProvider` for `.whisperKit`.
 - `AppConfig` JSON round-trips `whisper_kit_stt_config`.
+- Older `whisper_kit_stt_config` JSON without realtime fields still decodes
+  with safe defaults.
 - Existing provider configs still decode.
 - Settings exposes WhisperKit as an on-device STT provider.
 - Settings can proactively load the selected WhisperKit model.
 - Settings exposes supported-model selection, custom model entry, selected-model
   cache status, and cache deletion for remote cached models.
+- Settings exposes WhisperKit realtime partial tuning controls.
 - WhisperKit emits partial text while recording once the model is loaded.
 - No Argmax local server is required.
 

@@ -69,7 +69,7 @@ murmur-swift/
 │   │   ├── Output/                   # Clipboard, Keyboard, Combined output sinks
 │   │   ├── Pipeline/                 # PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
 │   │   └── STT/                      # Apple/WhisperKit/ElevenLabs/OpenAI/Groq/Custom providers, model managers
-│   └── Tests/                        # 137 tests across 23 suites (Swift Testing framework)
+│   └── Tests/                        # 138 tests across 23 suites (Swift Testing framework)
 ├── MurmurApp/                        # Xcode project
 │   ├── Shared/
 │   │   ├── MurmurApp.swift           # @main + AppDelegate (tray, hotkey, overlay, updates)
@@ -101,7 +101,7 @@ murmur-swift/
 # Build the Swift package
 cd MurmurKit && swift build
 
-# Run all tests (137 tests, 23 suites)
+# Run all tests (138 tests, 23 suites)
 cd MurmurKit && swift test
 
 # Build the full app via Xcode
