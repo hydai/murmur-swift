@@ -115,8 +115,14 @@ session:
 - Show whether the selected model is cached, missing, or ready from a custom
   local folder.
 - Display local cache size and cache path when available.
+- Let users pick a custom local model folder and clear it to return to the
+  default cache-managed path.
+- Let users open the selected cache/local-folder location in Finder when a path
+  is available.
 - Delete only Murmur-selected remote-model cache folders; never delete a custom
   local model folder supplied by the user.
+- Show deletion progress and actionable errors for unavailable folders,
+  unsupported platforms, and failed deletes.
 - Recheck model inventory when model, repo, or local folder settings change.
 
 ## Configuration
@@ -194,8 +200,8 @@ Float(sample) / Float(Int16.max)
 - Keep the existing language picker visible for WhisperKit.
 - Do not show API-key fields for WhisperKit.
 - Add model load status and a manual load button for WhisperKit.
-- Add selected-model cache status, cache size/path, refresh, delete, and local
-  folder validation.
+- Add selected-model cache status, cache size/path, refresh, open, delete,
+  local folder picker, and local folder validation.
 
 ### Phase 3.5: Runtime Reuse and Preload
 

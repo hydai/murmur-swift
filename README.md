@@ -37,7 +37,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 - Auto-opens Settings on first launch
 - **Redesigned Settings panel** with sidebar navigation, 8 sections (General, Speech-to-Text, LLM Processor, Output, Hotkey, Dictionary, Prompts, About) and reusable design tokens
 - Apple Speech model status + in-Settings download with progress bar
-- WhisperKit model picker + cache status/delete, local folder validation, and in-Settings preload with download progress
+- WhisperKit model picker + cache status/delete/open, local folder picker/validation, and in-Settings preload with download progress
 
 ### History
 - Transcription history with search (300 ms debounce)

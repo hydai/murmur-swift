@@ -53,16 +53,33 @@ struct WhisperKitModelStatusView: View {
 
             HStack {
                 Button {
+                    viewModel.openWhisperKitStorageLocation()
+                } label: {
+                    Label(openStorageButtonTitle, systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!viewModel.canOpenWhisperKitStorageLocation)
+
+                Button {
                     Task { await viewModel.refreshWhisperKitModelInventory() }
                 } label: {
                     Label("Refresh Cache", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
+                .disabled(viewModel.isDeletingWhisperKitCachedModel)
 
                 Button(role: .destructive) {
                     Task { await viewModel.deleteWhisperKitCachedModel() }
                 } label: {
-                    Label("Delete Cache", systemImage: "trash")
+                    if viewModel.isDeletingWhisperKitCachedModel {
+                        HStack(spacing: Spacing.xs) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Deleting")
+                        }
+                    } else {
+                        Label("Delete Cache", systemImage: "trash")
+                    }
                 }
                 .buttonStyle(.bordered)
                 .disabled(!viewModel.canDeleteWhisperKitCachedModel)
@@ -173,6 +190,15 @@ struct WhisperKitModelStatusView: View {
             return "Selected model is cached"
         case .notCached:
             return "Selected model is not cached"
+        }
+    }
+
+    private var openStorageButtonTitle: String {
+        switch viewModel.whisperKitStorageStatus {
+        case .localReady, .localMissing:
+            return "Open Folder"
+        case .remoteCached, .notCached:
+            return "Open Cache"
         }
     }
 

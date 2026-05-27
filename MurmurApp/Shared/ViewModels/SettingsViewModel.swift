@@ -1,5 +1,8 @@
 import SwiftUI
 import MurmurKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// Drives the Settings UI by maintaining a local copy of AppConfig
 /// and syncing changes back to ConfigManager.
@@ -402,17 +405,89 @@ final class SettingsViewModel {
         Task { await saveConfig() }
     }
 
+    func chooseWhisperKitModelFolder() {
+        whisperKitModelManagementError = nil
+
+        #if os(macOS)
+        let panel = NSOpenPanel()
+        panel.title = "Choose WhisperKit Model Folder"
+        panel.prompt = "Choose"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = existingWhisperKitModelFolderURL()
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        whisperKitModelFolder = url.path
+        Task { await saveConfig() }
+        #else
+        whisperKitModelManagementError = "Folder picking is only available on macOS."
+        #endif
+    }
+
+    func clearWhisperKitModelFolder() {
+        guard !whisperKitModelFolder.isEmpty else { return }
+        whisperKitModelManagementError = nil
+        whisperKitModelFolder = ""
+        Task { await saveConfig() }
+    }
+
     func deleteWhisperKitCachedModel() async {
+        guard case .remoteCached = whisperKitStorageStatus else {
+            whisperKitModelManagementError = "Only cached remote models can be deleted here. Custom local folders are never deleted by Murmur."
+            return
+        }
         isDeletingWhisperKitCachedModel = true
         whisperKitModelManagementError = nil
+        defer { isDeletingWhisperKitCachedModel = false }
+
         do {
             try await whisperKitModelManager.deleteCachedModel(for: currentWhisperKitConfig())
             await refreshWhisperKitModelInventory()
             await refreshWhisperKitModelStatus()
         } catch {
-            whisperKitModelManagementError = error.localizedDescription
+            whisperKitModelManagementError = "Could not delete cached model: \(error.localizedDescription)"
         }
-        isDeletingWhisperKitCachedModel = false
+    }
+
+    func openWhisperKitStorageLocation() {
+        whisperKitModelManagementError = nil
+
+        #if os(macOS)
+        let rawPath = whisperKitStorageStatus.path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rawPath.isEmpty else {
+            whisperKitModelManagementError = "No cache or model folder path is available yet."
+            return
+        }
+
+        let url = URL(fileURLWithPath: rawPath)
+        let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+
+        if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+            if isDirectory.boolValue {
+                let opened = NSWorkspace.shared.open(url)
+                if !opened {
+                    whisperKitModelManagementError = "Could not open \(url.path)."
+                }
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+            return
+        }
+
+        let parent = url.deletingLastPathComponent()
+        if fileManager.fileExists(atPath: parent.path) {
+            let opened = NSWorkspace.shared.open(parent)
+            if !opened {
+                whisperKitModelManagementError = "Could not open \(parent.path)."
+            }
+        } else {
+            whisperKitModelManagementError = "Folder does not exist yet: \(url.path)"
+        }
+        #else
+        whisperKitModelManagementError = "Opening model folders is only available on macOS."
+        #endif
     }
 
     var whisperKitModelChoices: [String] {
@@ -432,6 +507,11 @@ final class SettingsViewModel {
             return !whisperKitModelStatus.isBusy && !isDeletingWhisperKitCachedModel
         }
         return false
+    }
+
+    var canOpenWhisperKitStorageLocation: Bool {
+        !whisperKitStorageStatus.path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !isDeletingWhisperKitCachedModel
     }
 
     private func scheduleWhisperKitPreloadIfNeeded() {
@@ -472,6 +552,17 @@ final class SettingsViewModel {
             modelFolder: whisperKitModelFolder,
             prewarm: whisperKitPrewarm
         )
+    }
+
+    private func existingWhisperKitModelFolderURL() -> URL? {
+        let trimmed = whisperKitModelFolder.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: trimmed)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            return nil
+        }
+        return isDirectory.boolValue ? url : url.deletingLastPathComponent()
     }
 
     private func orderedUnique(_ values: [String]) -> [String] {

@@ -104,6 +104,22 @@ struct ProviderSettingsView: View {
                 placeholder: "",
                 text: $viewModel.whisperKitModelFolder
             )
+            HStack {
+                Button {
+                    viewModel.chooseWhisperKitModelFolder()
+                } label: {
+                    Label("Choose Folder", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    viewModel.clearWhisperKitModelFolder()
+                } label: {
+                    Label("Use Cache", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.whisperKitModelFolder.isEmpty)
+            }
             Toggle("Prewarm model", isOn: $viewModel.whisperKitPrewarm)
             Text("Runs native WhisperKit in-process. First use may download and compile Core ML model files.")
                 .font(.caption).foregroundStyle(.secondary)
