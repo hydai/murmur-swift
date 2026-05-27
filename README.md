@@ -10,7 +10,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 
 ### Speech-to-Text
 - **Apple Speech** (on-device, no API key) via `SpeechTranscriber`
-- **WhisperKit** (on-device, no API key) via Argmax Open-Source SDK, with realtime partials, shared native runtime reuse, proactive model loading, and cache management
+- **WhisperKit** (on-device, no API key) via Argmax Open-Source SDK, with realtime partials, shared native runtime reuse, proactive model loading, OSLog diagnostics, and cache management
 - **ElevenLabs Scribe v2** realtime WebSocket (98 languages, ISO 639-3)
 - **OpenAI Whisper** REST batching (4 s chunks)
 - **Groq Whisper Turbo** REST batching (4 s chunks)
@@ -141,7 +141,7 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - `TranscriptionAccumulator` — combines partials/commits with trailing-partial fallback
 - `AppleSttModelManager` — status + progress-tracked downloads via `AssetInventory`
 - `WhisperKitProvider` — native in-process WhisperKit transcription with realtime partial hypotheses and final stop-time commit
-- `WhisperKitRuntimeStore` — shared native WhisperKit pipeline cache with download/load/prewarm status
+- `WhisperKitRuntimeStore` — shared native WhisperKit pipeline cache with download/load/prewarm status and metrics
 - `WhisperKitModelManager` — supported model catalog normalization plus selected-model cache/local-folder inventory
 
 **LLM Processing**

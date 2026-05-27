@@ -29,7 +29,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
   - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptName, PromptSet, PromptStore, PromptManager, DefaultPromptTemplates
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
   - `Sources/Pipeline/` — PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
-  - `Sources/STT/` — AppleSttProvider, WhisperKitProvider, WhisperKitRuntimeStore, WhisperKitModelManager, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
+  - `Sources/STT/` — AppleSttProvider, WhisperKitProvider, WhisperKitRuntimeStore, WhisperKitMetricLogger, WhisperKitModelManager, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
   - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, OutputTests, PipelineTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
 - `MurmurApp/` — Xcode project (depends on MurmurKit + Sparkle)
   - `Shared/MurmurApp.swift` — @main + AppDelegate (tray, hotkey, overlay, updates, config observer)

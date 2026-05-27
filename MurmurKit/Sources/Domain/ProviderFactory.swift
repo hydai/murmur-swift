@@ -22,7 +22,8 @@ public struct ProviderFactory: Sendable {
             return WhisperKitProvider(
                 config: config.whisperKitSttConfig,
                 language: lang,
-                realtimeOptions: config.whisperKitSttConfig.realtimeOptions
+                realtimeOptions: config.whisperKitSttConfig.realtimeOptions,
+                onMetric: { WhisperKitMetricLogger.log($0) }
             )
         case .elevenLabs:
             let key = config.apiKeys[ProviderDefaults.ApiKey.elevenLabs] ?? ""

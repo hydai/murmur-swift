@@ -60,7 +60,8 @@ The provider exposes realtime tuning options for the hypothesis pass interval,
 minimum buffered sample count, and required stable segment count. It also emits
 diagnostic metrics for session lifecycle, audio receipt, realtime/final pass
 latency, first partial latency, runtime cache hits, download/load progress, and
-native transcription duration.
+native transcription duration. The app routes those metrics to OSLog under
+WhisperKit provider/runtime categories for production diagnostics.
 
 The implementation intentionally does not use `AudioStreamTranscriber` because
 that SDK actor opens its own microphone. Murmur keeps its shared audio capture
@@ -238,6 +239,8 @@ Float(sample) / Float(Int16.max)
   transcription duration.
 - Persist realtime tuning options in `WhisperKitSttConfig` and pass them
   through `ProviderFactory`.
+- Route provider and runtime metrics from recording, manual load, and automatic
+  prewarm paths to OSLog.
 
 ### Phase 4: Documentation and Tests
 
@@ -254,6 +257,8 @@ Float(sample) / Float(Int16.max)
   using JFK audio, including realtime partial output, final committed text, and
   special-token filtering.
 - Verify realtime partial metrics with the real transcription E2E path.
+- Verify OSLog metric routing compiles through package tests and the app target
+  build.
 - Run package tests.
 
 ## Acceptance Criteria

@@ -570,11 +570,15 @@ final class SettingsViewModel {
     private func preloadWhisperKitModel(config: WhisperKitSttConfig) async {
         whisperKitModelStatus = config.modelFolder.isEmpty ? .downloading(0) : .loading
         do {
-            try await whisperKitRuntimeStore.preload(config: config) { [weak self] status in
-                Task { @MainActor in
-                    self?.whisperKitModelStatus = status
-                }
-            }
+            try await whisperKitRuntimeStore.preload(
+                config: config,
+                onStatus: { [weak self] status in
+                    Task { @MainActor in
+                        self?.whisperKitModelStatus = status
+                    }
+                },
+                onMetric: { WhisperKitMetricLogger.log($0) }
+            )
             whisperKitModelStatus = .ready
             await refreshWhisperKitModelInventory()
         } catch {

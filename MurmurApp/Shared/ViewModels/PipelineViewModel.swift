@@ -126,7 +126,10 @@ final class PipelineViewModel {
         whisperKitPreloadTask = Task {
             try? await Task.sleep(for: .milliseconds(750))
             guard !Task.isCancelled else { return }
-            try? await WhisperKitRuntimeStore.shared.preload(config: whisperConfig)
+            try? await WhisperKitRuntimeStore.shared.preload(
+                config: whisperConfig,
+                onMetric: { WhisperKitMetricLogger.log($0) }
+            )
         }
     }
 
