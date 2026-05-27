@@ -21,6 +21,20 @@
                ReferencedContainer = "container:Murmur.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E5000001"
+               BuildableName = "MurmurUITests.xctest"
+               BlueprintName = "MurmurUITests"
+               ReferencedContainer = "container:Murmur.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -38,6 +52,16 @@
                BuildableName = "MurmurKitTests"
                BlueprintName = "MurmurKitTests"
                ReferencedContainer = "container:MurmurKit">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E5000001"
+               BuildableName = "MurmurUITests.xctest"
+               BlueprintName = "MurmurUITests"
+               ReferencedContainer = "container:Murmur.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>

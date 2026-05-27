@@ -7,7 +7,11 @@ public actor ConfigManager {
 
     /// Default config directory: ~/Library/Application Support/com.hydai.Murmur/
     public static var defaultDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        if let override = ProcessInfo.processInfo.environment["MURMUR_CONFIG_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("com.hydai.Murmur", isDirectory: true)
     }
 

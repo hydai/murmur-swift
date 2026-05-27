@@ -273,6 +273,8 @@ Float(sample) / Float(Int16.max)
 - Verify the app diagnostics recorder receives provider metrics through
   `ProviderFactory`.
 - Add unit tests for the diagnostics snapshot reducer.
+- Add macOS UI automation for the in-app diagnostics panel, including seeded
+  metrics and reset behavior.
 - Run package tests.
 
 ## Acceptance Criteria

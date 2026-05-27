@@ -39,12 +39,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set as accessory app (no dock icon, tray only)
+        #if DEBUG
+        if AppUITestSupport.isEnabled {
+            NSApplication.shared.setActivationPolicy(.regular)
+        } else {
+            NSApplication.shared.setActivationPolicy(.accessory)
+        }
+        #else
         NSApplication.shared.setActivationPolicy(.accessory)
+        #endif
 
         setupTray()
         installHotkeyCallback()
         observePipelineState()
+        #if DEBUG
+        if !AppUITestSupport.isEnabled {
+            checkPermissions()
+        }
+        #else
         checkPermissions()
+        #endif
 
         // AppDelegate lives for the app's lifetime; the observer is torn
         // down at process exit, so we don't store/remove it (deinit can't
@@ -62,7 +76,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Load config, then apply runtime-driven prefs (hotkey, opacity, theme).
         Task { @MainActor in
             try? await viewModel.configManager.load()
+            #if DEBUG
+            if AppUITestSupport.isEnabled {
+                await AppUITestSupport.prepare(configManager: viewModel.configManager)
+            }
+            #endif
             await applyRuntimePreferences()
+            #if DEBUG
+            if AppUITestSupport.shouldOpenSettings {
+                openSettingsWindow(initialSelection: AppUITestSupport.initialSettingsSection)
+                return
+            }
+            #endif
             openSettingsOnFirstLaunch()
         }
     }
@@ -198,14 +223,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func openSettingsWindow() {
+    private func openSettingsWindow(initialSelection: SettingsSection = .general) {
         if let window = settingsWindow, window.isVisible {
             window.makeKeyAndOrderFront(nil)
             return
         }
 
         let settingsView = SettingsPanel(
-            viewModel: SettingsViewModel(configManager: viewModel.configManager)
+            viewModel: SettingsViewModel(configManager: viewModel.configManager),
+            initialSelection: initialSelection
         )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 600),
@@ -242,4 +268,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         historyWindow = window
     }
 }
+
+#if DEBUG
+@MainActor
+private enum AppUITestSupport {
+    static var isEnabled: Bool {
+        CommandLine.arguments.contains("--ui-testing")
+    }
+
+    static var shouldOpenSettings: Bool {
+        CommandLine.arguments.contains("--ui-testing-open-settings")
+    }
+
+    static var initialSettingsSection: SettingsSection {
+        CommandLine.arguments.contains("--ui-testing-settings-stt") ? .stt : .general
+    }
+
+    static func prepare(configManager: ConfigManager) async {
+        if CommandLine.arguments.contains("--ui-testing-whisperkit-config")
+            || CommandLine.arguments.contains("--ui-testing-seed-whisperkit-diagnostics") {
+            try? await configManager.setConfig(whisperKitConfig())
+        }
+
+        if CommandLine.arguments.contains("--ui-testing-seed-whisperkit-diagnostics") {
+            seedWhisperKitDiagnostics()
+        }
+    }
+
+    private static func whisperKitConfig() -> AppConfig {
+        var config = AppConfig()
+        config.sttProvider = .whisperKit
+        config.whisperKitSttConfig = WhisperKitSttConfig(
+            model: "ui-test-tiny",
+            modelRepo: "ui-test/repo",
+            prewarm: false,
+            realtimeIntervalMilliseconds: 500,
+            realtimeMinimumSamples: 8_000,
+            realtimeRequiredSegmentsForConfirmation: 1
+        )
+        return config
+    }
+
+    private static func seedWhisperKitDiagnostics() {
+        let whisperConfig = whisperKitConfig().whisperKitSttConfig
+        let key = WhisperKitRuntimeKey(config: whisperConfig)
+        WhisperKitDiagnosticsStore.shared.reset()
+        WhisperKitDiagnosticsStore.shared.record(.runtime(.loadFinished(key: key, durationMs: 222)))
+        WhisperKitDiagnosticsStore.shared.record(.runtime(.cacheHit(key: key)))
+        WhisperKitDiagnosticsStore.shared.record(.sessionStarted(
+            model: whisperConfig.model,
+            intervalMs: 500,
+            minimumSamples: 8_000,
+            requiredSegmentsForConfirmation: 1
+        ))
+        WhisperKitDiagnosticsStore.shared.record(.audioReceived(
+            totalSamples: 16_000,
+            chunkSamples: 4_000,
+            timestampMs: 10
+        ))
+        WhisperKitDiagnosticsStore.shared.record(.realtimePassFinished(
+            sampleCount: 16_000,
+            segmentCount: 2,
+            emittedEventCount: 1,
+            durationMs: 111
+        ))
+        WhisperKitDiagnosticsStore.shared.record(.firstPartialLatency(durationMs: 321))
+        WhisperKitDiagnosticsStore.shared.record(.sessionFinished(
+            totalSamples: 16_000,
+            partialEvents: 2,
+            committedEvents: 3,
+            errorEvents: 0
+        ))
+    }
+}
+#endif
 #endif

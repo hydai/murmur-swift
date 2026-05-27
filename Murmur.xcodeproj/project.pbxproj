@@ -22,6 +22,13 @@
 			remoteGlobalIDString = D5000001;
 			remoteInfo = MurmurKeyboardExtension;
 		};
+		E1100001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A8000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A5000001;
+			remoteInfo = Murmur;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +52,7 @@
 		D2200001 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		D2200002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D2200003 /* MurmurKeyboardExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MurmurKeyboardExtension.entitlements; sourceTree = "<group>"; };
+		E2000001 /* MurmurUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MurmurUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +86,11 @@
 			path = MurmurApp/iOS;
 			sourceTree = "<group>";
 		};
+		E2100001 /* MurmurUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MurmurUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +118,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E3000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -114,6 +134,7 @@
 				A2100001 /* MurmurApp */,
 				A2100002 /* MurmurKit */,
 				D2100001 /* MurmurKeyboardExtension */,
+				E2100001 /* MurmurUITests */,
 				A4000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,6 +145,7 @@
 				A2000001 /* Murmur.app */,
 				C2000001 /* MurmurMobile.app */,
 				D2000001 /* MurmurKeyboardExtension.appex */,
+				E2000001 /* MurmurUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -210,6 +232,29 @@
 			productReference = D2000001 /* MurmurKeyboardExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		E5000001 /* MurmurUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E7000003 /* Build configuration list for PBXNativeTarget "MurmurUITests" */;
+			buildPhases = (
+				E6000001 /* Sources */,
+				E3000001 /* Frameworks */,
+				E6000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E1200001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E2100001 /* MurmurUITests */,
+			);
+			name = MurmurUITests;
+			packageProductDependencies = (
+			);
+			productName = MurmurUITests;
+			productReference = E2000001 /* MurmurUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -241,6 +286,7 @@
 				A5000001 /* Murmur */,
 				C5000001 /* Murmur iOS */,
 				D5000001 /* MurmurKeyboardExtension */,
+				E5000001 /* MurmurUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -261,6 +307,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D6000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6000002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -292,6 +345,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E6000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -299,6 +359,11 @@
 			isa = PBXTargetDependency;
 			target = D5000001 /* MurmurKeyboardExtension */;
 			targetProxy = D1100001 /* PBXContainerItemProxy */;
+		};
+		E1200001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A5000001 /* Murmur */;
+			targetProxy = E1100001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -593,6 +658,52 @@
 			};
 			name = Release;
 		};
+		E7000006 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Murmur;
+			};
+			name = Debug;
+		};
+		E7000007 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Murmur;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -628,6 +739,15 @@
 			buildConfigurations = (
 				D7000006 /* Debug */,
 				D7000007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E7000003 /* Build configuration list for PBXNativeTarget "MurmurUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E7000006 /* Debug */,
+				E7000007 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

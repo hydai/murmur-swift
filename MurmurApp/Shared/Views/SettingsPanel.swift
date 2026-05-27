@@ -5,7 +5,15 @@ import MurmurKit
 /// every section so we match the Rust v0.2.11 layout.
 struct SettingsPanel: View {
     @State var viewModel: SettingsViewModel
-    @State private var selection: SettingsSection = .general
+    @State private var selection: SettingsSection
+
+    init(
+        viewModel: SettingsViewModel,
+        initialSelection: SettingsSection = .general
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        _selection = State(initialValue: initialSelection)
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -25,6 +33,7 @@ struct SettingsPanel: View {
         List(SettingsSection.allCases, id: \.self, selection: $selection) { section in
             Label(section.title, systemImage: section.systemImage)
                 .tag(section)
+                .accessibilityIdentifier(section.accessibilityIdentifier)
         }
         .listStyle(.sidebar)
         .navigationTitle("Murmur")
@@ -37,6 +46,7 @@ struct SettingsPanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .foregroundStyle(selection == section ? Color.accentColor : Color.primary)
+            .accessibilityIdentifier(section.accessibilityIdentifier)
         }
         .listStyle(.sidebar)
         .navigationTitle("Murmur")
@@ -95,6 +105,19 @@ enum SettingsSection: CaseIterable, Hashable {
         case .dictionary: return "book.closed"
         case .prompts:    return "text.alignleft"
         case .about:      return "info.circle"
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .general:    return "settings-section-general"
+        case .stt:        return "settings-section-stt"
+        case .llm:        return "settings-section-llm"
+        case .output:     return "settings-section-output"
+        case .hotkey:     return "settings-section-hotkey"
+        case .dictionary: return "settings-section-dictionary"
+        case .prompts:    return "settings-section-prompts"
+        case .about:      return "settings-section-about"
         }
     }
 }

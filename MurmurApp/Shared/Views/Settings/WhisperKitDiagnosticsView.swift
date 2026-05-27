@@ -15,6 +15,8 @@ struct WhisperKitDiagnosticsView: View {
                 Image(systemName: diagnostics.hasData ? "waveform.path.ecg" : "waveform.path")
                     .foregroundStyle(diagnostics.hasData ? Color.accentColor : Color.secondary)
                 Text(diagnostics.hasData ? "Latest WhisperKit diagnostics" : "No diagnostics captured")
+                    .accessibilityIdentifier("whisperkit-diagnostics-title")
+                    .accessibilityLabel(diagnostics.hasData ? "Latest WhisperKit diagnostics" : "No diagnostics captured")
                 Spacer()
                 Button {
                     viewModel.resetWhisperKitDiagnostics()
@@ -23,27 +25,36 @@ struct WhisperKitDiagnosticsView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!diagnostics.hasData)
+                .accessibilityIdentifier("whisperkit-diagnostics-reset")
             }
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.s) {
-                DiagnosticsTile("Model", value: diagnostics.modelText)
-                DiagnosticsTile("Source", value: diagnostics.modelSourceText)
-                DiagnosticsTile("Last update", value: timeText(diagnostics.updatedAt))
-                DiagnosticsTile("Audio", value: samplesText(diagnostics.totalSamples))
-                DiagnosticsTile("First partial", value: millisecondsText(diagnostics.firstPartialLatencyMs))
+                DiagnosticsTile("Model", value: diagnostics.modelText, identifier: "model")
+                DiagnosticsTile("Source", value: diagnostics.modelSourceText, identifier: "source")
+                DiagnosticsTile("Last update", value: timeText(diagnostics.updatedAt), identifier: "updated-at")
+                DiagnosticsTile("Audio", value: samplesText(diagnostics.totalSamples), identifier: "audio")
+                DiagnosticsTile(
+                    "First partial",
+                    value: millisecondsText(diagnostics.firstPartialLatencyMs),
+                    identifier: "first-partial"
+                )
                 DiagnosticsTile("Realtime pass", value: passText(
                     durationMs: diagnostics.lastRealtimeDurationMs,
                     segmentCount: diagnostics.lastRealtimeSegmentCount
-                ))
+                ), identifier: "realtime-pass")
                 DiagnosticsTile("Final pass", value: passText(
                     durationMs: diagnostics.lastFinalDurationMs,
                     segmentCount: diagnostics.lastFinalSegmentCount
-                ))
-                DiagnosticsTile("Native pass", value: nativePassText)
-                DiagnosticsTile("Download", value: millisecondsText(diagnostics.lastDownloadDurationMs))
-                DiagnosticsTile("Load", value: millisecondsText(diagnostics.lastLoadDurationMs))
-                DiagnosticsTile("Cache hits", value: "\(diagnostics.cacheHitCount)")
-                DiagnosticsTile("Events", value: eventCountsText)
+                ), identifier: "final-pass")
+                DiagnosticsTile("Native pass", value: nativePassText, identifier: "native-pass")
+                DiagnosticsTile(
+                    "Download",
+                    value: millisecondsText(diagnostics.lastDownloadDurationMs),
+                    identifier: "download"
+                )
+                DiagnosticsTile("Load", value: millisecondsText(diagnostics.lastLoadDurationMs), identifier: "load")
+                DiagnosticsTile("Cache hits", value: "\(diagnostics.cacheHitCount)", identifier: "cache-hits")
+                DiagnosticsTile("Events", value: eventCountsText, identifier: "events")
             }
 
             if let lastError = diagnostics.lastError {
@@ -54,6 +65,7 @@ struct WhisperKitDiagnosticsView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                         .textSelection(.enabled)
+                        .accessibilityIdentifier("whisperkit-diagnostics-last-error")
                 }
             }
 
@@ -65,8 +77,14 @@ struct WhisperKitDiagnosticsView: View {
                         DiagnosticsEventRow(event: event)
                     }
                 }
+                .accessibilityIdentifier("whisperkit-diagnostics-recent-events")
             }
         }
+        .overlay(alignment: .topLeading) {
+            accessibilityDiagnosticsValues
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("whisperkit-diagnostics-panel")
         .task { viewModel.refreshWhisperKitDiagnostics() }
         .task {
             while !Task.isCancelled {
@@ -80,6 +98,47 @@ struct WhisperKitDiagnosticsView: View {
         [
             GridItem(.adaptive(minimum: 150), spacing: Spacing.s, alignment: .leading)
         ]
+    }
+
+    private var accessibilityDiagnosticsValues: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            accessibilityMetric("model", label: "Model", value: diagnostics.modelText)
+            accessibilityMetric("source", label: "Source", value: diagnostics.modelSourceText)
+            accessibilityMetric("updated-at", label: "Last update", value: timeText(diagnostics.updatedAt))
+            accessibilityMetric("audio", label: "Audio", value: samplesText(diagnostics.totalSamples))
+            accessibilityMetric(
+                "first-partial",
+                label: "First partial",
+                value: millisecondsText(diagnostics.firstPartialLatencyMs)
+            )
+            accessibilityMetric("realtime-pass", label: "Realtime pass", value: passText(
+                durationMs: diagnostics.lastRealtimeDurationMs,
+                segmentCount: diagnostics.lastRealtimeSegmentCount
+            ))
+            accessibilityMetric("final-pass", label: "Final pass", value: passText(
+                durationMs: diagnostics.lastFinalDurationMs,
+                segmentCount: diagnostics.lastFinalSegmentCount
+            ))
+            accessibilityMetric("native-pass", label: "Native pass", value: nativePassText)
+            accessibilityMetric(
+                "download",
+                label: "Download",
+                value: millisecondsText(diagnostics.lastDownloadDurationMs)
+            )
+            accessibilityMetric("load", label: "Load", value: millisecondsText(diagnostics.lastLoadDurationMs))
+            accessibilityMetric("cache-hits", label: "Cache hits", value: "\(diagnostics.cacheHitCount)")
+            accessibilityMetric("events", label: "Events", value: eventCountsText)
+        }
+        .frame(width: 1, height: 1, alignment: .topLeading)
+        .opacity(0.01)
+        .allowsHitTesting(false)
+    }
+
+    private func accessibilityMetric(_ identifier: String, label: String, value: String) -> some View {
+        Text(value)
+            .accessibilityLabel(label)
+            .accessibilityValue(value)
+            .accessibilityIdentifier("whisperkit-diagnostics-\(identifier)-value")
     }
 
     private var nativePassText: String {
@@ -122,10 +181,12 @@ struct WhisperKitDiagnosticsView: View {
 private struct DiagnosticsTile: View {
     let label: String
     let value: String
+    let identifier: String
 
-    init(_ label: String, value: String) {
+    init(_ label: String, value: String, identifier: String) {
         self.label = label
         self.value = value
+        self.identifier = identifier
     }
 
     var body: some View {
@@ -140,6 +201,10 @@ private struct DiagnosticsTile: View {
                 .textSelection(.enabled)
         }
         .frame(minHeight: 44, alignment: .topLeading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+        .accessibilityIdentifier("whisperkit-diagnostics-\(identifier)-tile")
     }
 }
 
