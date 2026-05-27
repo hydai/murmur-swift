@@ -20,6 +20,21 @@ public enum WhisperKitModelStatus: Sendable, Equatable {
     }
 }
 
+/// Runtime-level diagnostics for WhisperKit model loading and transcription.
+public enum WhisperKitRuntimeMetric: Sendable, Equatable {
+    case cacheHit(key: WhisperKitRuntimeKey)
+    case awaitingInFlightLoad(key: WhisperKitRuntimeKey)
+    case downloadStarted(key: WhisperKitRuntimeKey)
+    case downloadFinished(key: WhisperKitRuntimeKey, modelFolder: String, durationMs: UInt64)
+    case downloadFailed(key: WhisperKitRuntimeKey, durationMs: UInt64, message: String)
+    case loadStarted(key: WhisperKitRuntimeKey, modelFolder: String, prewarm: Bool)
+    case loadFinished(key: WhisperKitRuntimeKey, durationMs: UInt64)
+    case loadFailed(key: WhisperKitRuntimeKey, durationMs: UInt64, message: String)
+    case transcriptionStarted(key: WhisperKitRuntimeKey, sampleCount: Int, clipStartSeconds: Float?)
+    case transcriptionFinished(key: WhisperKitRuntimeKey, segmentCount: Int, durationMs: UInt64)
+    case transcriptionFailed(key: WhisperKitRuntimeKey, durationMs: UInt64, message: String)
+}
+
 /// Cache key for reusable native WhisperKit runtimes.
 public struct WhisperKitRuntimeKey: Sendable, Hashable {
     public let model: String
@@ -83,9 +98,10 @@ public actor WhisperKitRuntimeStore {
 
     public func preload(
         config: WhisperKitSttConfig,
-        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in }
+        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in },
+        onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void = { _ in }
     ) async throws {
-        _ = try await runtime(for: config, onStatus: onStatus)
+        _ = try await runtime(for: config, onStatus: onStatus, onMetric: onMetric)
     }
 
     public func evict(config: WhisperKitSttConfig) async {
@@ -101,24 +117,41 @@ public actor WhisperKitRuntimeStore {
         samples: [Float],
         config: WhisperKitSttConfig,
         language: String?,
-        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in }
+        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in },
+        onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void = { _ in }
     ) async throws -> String {
         let key = WhisperKitRuntimeKey(config: config)
-        let box = try await runtime(for: config, onStatus: onStatus)
+        let box = try await runtime(for: config, onStatus: onStatus, onMetric: onMetric)
 
         await acquire(key)
         defer { release(key) }
 
         let options = Self.decodingOptions(language: language)
-        let results = try await box.pipeline.transcribe(
-            audioArray: samples,
-            decodeOptions: options
-        )
-        return results
-            .map(\.text)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let startedAt = Date()
+        onMetric(.transcriptionStarted(key: key, sampleCount: samples.count, clipStartSeconds: nil))
+        do {
+            let results = try await box.pipeline.transcribe(
+                audioArray: samples,
+                decodeOptions: options
+            )
+            onMetric(.transcriptionFinished(
+                key: key,
+                segmentCount: results.flatMap(\.segments).count,
+                durationMs: Self.elapsedMilliseconds(since: startedAt)
+            ))
+            return results
+                .map(\.text)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        } catch {
+            onMetric(.transcriptionFailed(
+                key: key,
+                durationMs: Self.elapsedMilliseconds(since: startedAt),
+                message: error.localizedDescription
+            ))
+            throw error
+        }
     }
 
     func transcribeSegments(
@@ -126,29 +159,51 @@ public actor WhisperKitRuntimeStore {
         config: WhisperKitSttConfig,
         language: String?,
         clipStartSeconds: Float? = nil,
-        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in }
+        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void = { _ in },
+        onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void = { _ in }
     ) async throws -> [WhisperKitTranscriptSegment] {
         let key = WhisperKitRuntimeKey(config: config)
-        let box = try await runtime(for: config, onStatus: onStatus)
+        let box = try await runtime(for: config, onStatus: onStatus, onMetric: onMetric)
 
         await acquire(key)
         defer { release(key) }
 
         let options = Self.decodingOptions(language: language, clipStartSeconds: clipStartSeconds)
 
-        let results = try await box.pipeline.transcribe(
-            audioArray: samples,
-            decodeOptions: options
-        )
-        return results
-            .flatMap(\.segments)
-            .map {
-                WhisperKitTranscriptSegment(
-                    text: $0.text,
-                    start: $0.start,
-                    end: $0.end
-                )
-            }
+        let startedAt = Date()
+        onMetric(.transcriptionStarted(
+            key: key,
+            sampleCount: samples.count,
+            clipStartSeconds: clipStartSeconds
+        ))
+        do {
+            let results = try await box.pipeline.transcribe(
+                audioArray: samples,
+                decodeOptions: options
+            )
+            let segments = results
+                .flatMap(\.segments)
+                .map {
+                    WhisperKitTranscriptSegment(
+                        text: $0.text,
+                        start: $0.start,
+                        end: $0.end
+                    )
+                }
+            onMetric(.transcriptionFinished(
+                key: key,
+                segmentCount: segments.count,
+                durationMs: Self.elapsedMilliseconds(since: startedAt)
+            ))
+            return segments
+        } catch {
+            onMetric(.transcriptionFailed(
+                key: key,
+                durationMs: Self.elapsedMilliseconds(since: startedAt),
+                message: error.localizedDescription
+            ))
+            throw error
+        }
     }
 
     func resetForTesting() {
@@ -159,17 +214,20 @@ public actor WhisperKitRuntimeStore {
 
     private func runtime(
         for config: WhisperKitSttConfig,
-        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void
+        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void,
+        onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void
     ) async throws -> RuntimeBox {
         let key = WhisperKitRuntimeKey(config: config)
 
         if let box = entries[key]?.box {
             onStatus(.ready)
+            onMetric(.cacheHit(key: key))
             return box
         }
 
         if let task = entries[key]?.loadTask {
             onStatus(entries[key]?.status ?? .loading)
+            onMetric(.awaitingInFlightLoad(key: key))
             return try await finish(task, for: key, onStatus: onStatus)
         }
 
@@ -180,10 +238,10 @@ public actor WhisperKitRuntimeStore {
         onStatus(initialStatus)
 
         let task = Task {
-            try await Self.makeRuntime(for: config, key: key) { [weak self] status in
+            try await Self.makeRuntime(for: config, key: key, onStatus: { [weak self] status in
                 Task { await self?.setStatus(status, for: key) }
                 onStatus(status)
-            }
+            }, onMetric: onMetric)
         }
         entries[key] = Entry(loadTask: task, status: initialStatus)
 
@@ -238,23 +296,42 @@ public actor WhisperKitRuntimeStore {
     private static func makeRuntime(
         for config: WhisperKitSttConfig,
         key: WhisperKitRuntimeKey,
-        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void
+        onStatus: @escaping @Sendable (WhisperKitModelStatus) -> Void,
+        onMetric: @escaping @Sendable (WhisperKitRuntimeMetric) -> Void
     ) async throws -> RuntimeBox {
         let modelFolder: String
         if key.modelFolder.isEmpty {
             onStatus(.downloading(0))
-            let downloaded = try await WhisperKit.download(
-                variant: key.model,
-                from: key.modelRepo
-            ) { progress in
-                onStatus(.downloading(Self.clamped(progress.fractionCompleted)))
+            let startedAt = Date()
+            onMetric(.downloadStarted(key: key))
+            do {
+                let downloaded = try await WhisperKit.download(
+                    variant: key.model,
+                    from: key.modelRepo
+                ) { progress in
+                    onStatus(.downloading(Self.clamped(progress.fractionCompleted)))
+                }
+                modelFolder = downloaded.path
+                onMetric(.downloadFinished(
+                    key: key,
+                    modelFolder: modelFolder,
+                    durationMs: Self.elapsedMilliseconds(since: startedAt)
+                ))
+            } catch {
+                onMetric(.downloadFailed(
+                    key: key,
+                    durationMs: Self.elapsedMilliseconds(since: startedAt),
+                    message: error.localizedDescription
+                ))
+                throw error
             }
-            modelFolder = downloaded.path
         } else {
             modelFolder = key.modelFolder
         }
 
         onStatus(config.prewarm ? .prewarming : .loading)
+        let loadStartedAt = Date()
+        onMetric(.loadStarted(key: key, modelFolder: modelFolder, prewarm: config.prewarm))
 
         let nativeConfig = WhisperKitConfig(
             model: key.model,
@@ -265,11 +342,29 @@ public actor WhisperKitRuntimeStore {
             load: true,
             download: false
         )
-        return RuntimeBox(try await WhisperKit(nativeConfig))
+        do {
+            let box = RuntimeBox(try await WhisperKit(nativeConfig))
+            onMetric(.loadFinished(
+                key: key,
+                durationMs: Self.elapsedMilliseconds(since: loadStartedAt)
+            ))
+            return box
+        } catch {
+            onMetric(.loadFailed(
+                key: key,
+                durationMs: Self.elapsedMilliseconds(since: loadStartedAt),
+                message: error.localizedDescription
+            ))
+            throw error
+        }
     }
 
     private static func clamped(_ value: Double) -> Double {
         min(1.0, max(0.0, value))
+    }
+
+    private static func elapsedMilliseconds(since start: Date) -> UInt64 {
+        UInt64(max(0, Date().timeIntervalSince(start) * 1000))
     }
 
     private static func decodingOptions(

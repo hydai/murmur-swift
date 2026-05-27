@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (136 tests, 23 suites)
+# Run all tests (137 tests, 23 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -73,7 +73,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-23 suites, 136 tests (Swift Testing framework):
+23 suites, 137 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
@@ -87,7 +87,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 - `PromptManagerTests` — Chinese Language Rule, override behaviour, placeholder substitution
 - `PromptStoreTests` — disk persistence round-trips, reset semantics
 - `CustomSttProviderTests` — Construction with default/custom/nil-key parameters
-- `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime segment state, and PCM normalization for native WhisperKit STT
+- `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime options, realtime segment state, and PCM normalization for native WhisperKit STT
 - `WhisperKitModelManagerTests` — Model catalog normalization, local folder validation, and cache size display
 - `WhisperKitCacheDeletionIntegrationTests` — Opt-in real tiny-model download/cache/delete verification under a temporary home
 - `WhisperKitTranscriptionIntegrationTests` — Opt-in real tiny-model provider transcription with realtime partial and final transcript checks

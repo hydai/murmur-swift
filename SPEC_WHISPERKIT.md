@@ -56,6 +56,12 @@ WhisperKit uses Murmur's existing `SttProvider` stream contract:
 4. `stopSession()` runs one final transcription from the last committed segment
    boundary, emits any remaining committed text, then finishes the event stream.
 
+The provider exposes realtime tuning options for the hypothesis pass interval,
+minimum buffered sample count, and required stable segment count. It also emits
+diagnostic metrics for session lifecycle, audio receipt, realtime/final pass
+latency, first partial latency, runtime cache hits, download/load progress, and
+native transcription duration.
+
 The implementation intentionally does not use `AudioStreamTranscriber` because
 that SDK actor opens its own microphone. Murmur keeps its shared audio capture
 path and layers incremental transcription on top of WhisperKit's native
@@ -219,6 +225,9 @@ Float(sample) / Float(Int16.max)
 - Confirm only stable segment prefixes and keep the unstable suffix as partial
   text.
 - Run a final stop-time transcription to commit remaining unconfirmed text.
+- Add realtime tuning options and metrics for first-partial latency,
+  realtime/final pass duration, runtime cache reuse, model load, and native
+  transcription duration.
 
 ### Phase 4: Documentation and Tests
 
@@ -234,6 +243,7 @@ Float(sample) / Float(Int16.max)
 - Add an opt-in integration test for real tiny-model provider transcription
   using JFK audio, including realtime partial output, final committed text, and
   special-token filtering.
+- Verify realtime partial metrics with the real transcription E2E path.
 - Run package tests.
 
 ## Acceptance Criteria

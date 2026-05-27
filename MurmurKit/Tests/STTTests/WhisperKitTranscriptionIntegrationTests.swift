@@ -39,12 +39,20 @@ struct WhisperKitTranscriptionIntegrationTests {
         }
 
         let samples = try loadJfkSamples()
+        let metrics = ProviderMetricRecorder()
         let provider = WhisperKitProvider(
             config: config,
             language: "en",
             runtimeStore: runtimeStore,
-            realtimeInterval: .milliseconds(250),
-            realtimeMinimumSamples: 16000
+            realtimeOptions: WhisperKitRealtimeOptions(
+                intervalMilliseconds: 250,
+                minimumSamples: 16000,
+                requiredSegmentsForConfirmation: 2
+            ),
+            onMetric: { metric in
+                metrics.append(metric)
+                print("[WhisperKit transcription E2E] metric=\(metric)")
+            }
         )
         let recorder = TranscriptionEventRecorder()
         let collector = Task {
@@ -75,6 +83,12 @@ struct WhisperKitTranscriptionIntegrationTests {
         let normalizedTranscript = normalize(finalTranscript)
         #expect(normalizedTranscript.contains("my fellow americans"))
         #expect(normalizedTranscript.contains("your country"))
+
+        let capturedMetrics = metrics.snapshot()
+        #expect(capturedMetrics.containsFirstPartialLatency)
+        #expect(capturedMetrics.containsFinalPassFinished)
+        #expect(capturedMetrics.containsRuntimeCacheHit)
+        #expect(capturedMetrics.containsRuntimeTranscriptionFinished)
 
         await runtimeStore.evict(config: config)
     }
@@ -195,8 +209,63 @@ private actor TranscriptionEventRecorder {
     }
 }
 
+private final class ProviderMetricRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var metrics: [WhisperKitProviderMetric] = []
+
+    func append(_ metric: WhisperKitProviderMetric) {
+        lock.lock()
+        defer { lock.unlock() }
+        metrics.append(metric)
+    }
+
+    func snapshot() -> [WhisperKitProviderMetric] {
+        lock.lock()
+        defer { lock.unlock() }
+        return metrics
+    }
+}
+
 private enum E2EError: Error {
     case invalidWav(String)
+}
+
+private extension [WhisperKitProviderMetric] {
+    var containsFirstPartialLatency: Bool {
+        contains { metric in
+            if case .firstPartialLatency = metric {
+                return true
+            }
+            return false
+        }
+    }
+
+    var containsFinalPassFinished: Bool {
+        contains { metric in
+            if case .finalPassFinished = metric {
+                return true
+            }
+            return false
+        }
+    }
+
+    var containsRuntimeCacheHit: Bool {
+        contains { metric in
+            if case .runtime(.cacheHit(key: _)) = metric {
+                return true
+            }
+            return false
+        }
+    }
+
+    var containsRuntimeTranscriptionFinished: Bool {
+        contains { metric in
+            if case .runtime(.transcriptionFinished(key: _, segmentCount: _, durationMs: _)) = metric {
+                return true
+            }
+            return false
+        }
+    }
 }
 
 private extension [TranscriptionEvent] {

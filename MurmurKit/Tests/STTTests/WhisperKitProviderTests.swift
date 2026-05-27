@@ -37,6 +37,19 @@ struct WhisperKitProviderTests {
         #expect(samples[2] == 1)
     }
 
+    @Test("Realtime options clamp unsafe values")
+    func realtimeOptionsClampUnsafeValues() {
+        let options = WhisperKitRealtimeOptions(
+            intervalMilliseconds: 1,
+            minimumSamples: 0,
+            requiredSegmentsForConfirmation: -1
+        )
+
+        #expect(options.intervalMilliseconds == 100)
+        #expect(options.minimumSamples == 1)
+        #expect(options.requiredSegmentsForConfirmation == 0)
+    }
+
     @Test("Runtime key normalizes empty config values")
     func runtimeKeyNormalizesEmptyConfigValues() {
         let key = WhisperKitRuntimeKey(

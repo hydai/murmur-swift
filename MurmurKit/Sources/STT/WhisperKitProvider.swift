@@ -1,5 +1,39 @@
 import Foundation
 
+public struct WhisperKitRealtimeOptions: Sendable, Equatable {
+    public var intervalMilliseconds: Int
+    public var minimumSamples: Int
+    public var requiredSegmentsForConfirmation: Int
+
+    public init(
+        intervalMilliseconds: Int = 1500,
+        minimumSamples: Int = 16000,
+        requiredSegmentsForConfirmation: Int = 2
+    ) {
+        self.intervalMilliseconds = max(100, intervalMilliseconds)
+        self.minimumSamples = max(1, minimumSamples)
+        self.requiredSegmentsForConfirmation = max(0, requiredSegmentsForConfirmation)
+    }
+
+    var interval: Duration {
+        .milliseconds(intervalMilliseconds)
+    }
+}
+
+public enum WhisperKitProviderMetric: Sendable, Equatable {
+    case sessionStarted(model: String, intervalMs: Int, minimumSamples: Int, requiredSegmentsForConfirmation: Int)
+    case audioReceived(totalSamples: Int, chunkSamples: Int, timestampMs: UInt64)
+    case realtimePassStarted(sampleCount: Int, confirmedEndSeconds: Float)
+    case realtimePassFinished(sampleCount: Int, segmentCount: Int, emittedEventCount: Int, durationMs: UInt64)
+    case realtimePassFailed(sampleCount: Int, durationMs: UInt64, message: String)
+    case firstPartialLatency(durationMs: UInt64)
+    case finalPassStarted(sampleCount: Int, confirmedEndSeconds: Float)
+    case finalPassFinished(segmentCount: Int, emittedEventCount: Int, durationMs: UInt64)
+    case finalPassFailed(durationMs: UInt64, message: String)
+    case runtime(WhisperKitRuntimeMetric)
+    case sessionFinished(totalSamples: Int, partialEvents: Int, committedEvents: Int, errorEvents: Int)
+}
+
 /// Native Argmax WhisperKit STT.
 ///
 /// The open-source SDK path is treated as batch transcription for the first
@@ -9,14 +43,20 @@ public actor WhisperKitProvider: SttProvider {
     private let config: WhisperKitSttConfig
     private let language: String?
     private let runtimeStore: WhisperKitRuntimeStore
-    private let realtimeInterval: Duration
-    private let realtimeMinimumSamples: Int
+    private let realtimeOptions: WhisperKitRealtimeOptions
+    private let onMetric: @Sendable (WhisperKitProviderMetric) -> Void
 
     private var sampleBuffer: [Int16] = []
     private var streamTask: Task<Void, Never>?
     private var isStopping = false
     private var lastRealtimeSampleCount = 0
     private var realtimeState = WhisperKitRealtimeState()
+    private var sessionStartedAt: Date?
+    private var totalSamplesReceived = 0
+    private var partialEventCount = 0
+    private var committedEventCount = 0
+    private var errorEventCount = 0
+    private var hasSeenFirstPartial = false
 
     private let eventContinuation: AsyncStream<TranscriptionEvent>.Continuation
     public nonisolated let events: AsyncStream<TranscriptionEvent>
@@ -25,14 +65,14 @@ public actor WhisperKitProvider: SttProvider {
         config: WhisperKitSttConfig = WhisperKitSttConfig(),
         language: String? = nil,
         runtimeStore: WhisperKitRuntimeStore = .shared,
-        realtimeInterval: Duration = .milliseconds(1500),
-        realtimeMinimumSamples: Int = 16000
+        realtimeOptions: WhisperKitRealtimeOptions = WhisperKitRealtimeOptions(),
+        onMetric: @escaping @Sendable (WhisperKitProviderMetric) -> Void = { _ in }
     ) {
         self.config = config
         self.language = language
         self.runtimeStore = runtimeStore
-        self.realtimeInterval = realtimeInterval
-        self.realtimeMinimumSamples = realtimeMinimumSamples
+        self.realtimeOptions = realtimeOptions
+        self.onMetric = onMetric
 
         var cont: AsyncStream<TranscriptionEvent>.Continuation!
         self.events = AsyncStream { cont = $0 }
@@ -43,7 +83,21 @@ public actor WhisperKitProvider: SttProvider {
         sampleBuffer = []
         isStopping = false
         lastRealtimeSampleCount = 0
-        realtimeState = WhisperKitRealtimeState()
+        realtimeState = WhisperKitRealtimeState(
+            requiredSegmentsForConfirmation: realtimeOptions.requiredSegmentsForConfirmation
+        )
+        sessionStartedAt = Date()
+        totalSamplesReceived = 0
+        partialEventCount = 0
+        committedEventCount = 0
+        errorEventCount = 0
+        hasSeenFirstPartial = false
+        emitMetric(.sessionStarted(
+            model: WhisperKitRuntimeKey(config: config).model,
+            intervalMs: realtimeOptions.intervalMilliseconds,
+            minimumSamples: realtimeOptions.minimumSamples,
+            requiredSegmentsForConfirmation: realtimeOptions.requiredSegmentsForConfirmation
+        ))
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             await self?.runRealtimeLoop()
@@ -52,10 +106,24 @@ public actor WhisperKitProvider: SttProvider {
 
     public func sendAudio(_ chunk: AudioChunk) async throws {
         sampleBuffer.append(contentsOf: chunk.data)
+        totalSamplesReceived += chunk.data.count
+        emitMetric(.audioReceived(
+            totalSamples: totalSamplesReceived,
+            chunkSamples: chunk.data.count,
+            timestampMs: chunk.timestampMs
+        ))
     }
 
     public func stopSession() async throws {
-        defer { eventContinuation.finish() }
+        defer {
+            emitMetric(.sessionFinished(
+                totalSamples: totalSamplesReceived,
+                partialEvents: partialEventCount,
+                committedEvents: committedEventCount,
+                errorEvents: errorEventCount
+            ))
+            eventContinuation.finish()
+        }
 
         isStopping = true
         streamTask?.cancel()
@@ -66,18 +134,35 @@ public actor WhisperKitProvider: SttProvider {
         let samples = sampleBuffer
         sampleBuffer = []
 
+        let startedAt = Date()
+        emitMetric(.finalPassStarted(
+            sampleCount: samples.count,
+            confirmedEndSeconds: realtimeState.confirmedEndSeconds
+        ))
+
         do {
             let segments = try await runtimeStore.transcribeSegments(
                 samples: Self.floatSamples(from: samples),
                 config: config,
                 language: language,
                 clipStartSeconds: realtimeState.confirmedEndSeconds,
-                onStatus: { _ in }
+                onStatus: { _ in },
+                onMetric: runtimeMetricHandler()
             )
-            for event in realtimeState.finalize(segments) {
+            let events = realtimeState.finalize(segments)
+            emitMetric(.finalPassFinished(
+                segmentCount: segments.count,
+                emittedEventCount: events.count,
+                durationMs: Self.elapsedMilliseconds(since: startedAt)
+            ))
+            for event in events {
                 emit(event)
             }
         } catch {
+            emitMetric(.finalPassFailed(
+                durationMs: Self.elapsedMilliseconds(since: startedAt),
+                message: error.localizedDescription
+            ))
             emit(.error(message: "WhisperKit error: \(error.localizedDescription)"))
         }
     }
@@ -91,7 +176,7 @@ public actor WhisperKitProvider: SttProvider {
     private func runRealtimeLoop() async {
         while !Task.isCancelled {
             do {
-                try await Task.sleep(for: realtimeInterval)
+                try await Task.sleep(for: realtimeOptions.interval)
             } catch {
                 return
             }
@@ -101,19 +186,40 @@ public actor WhisperKitProvider: SttProvider {
             let snapshot = realtimeSnapshot()
             guard let snapshot else { continue }
 
+            let startedAt = Date()
+            emitMetric(.realtimePassStarted(
+                sampleCount: snapshot.sampleCount,
+                confirmedEndSeconds: snapshot.confirmedEndSeconds
+            ))
+
             do {
                 let segments = try await runtimeStore.transcribeSegments(
                     samples: Self.floatSamples(from: snapshot.samples),
                     config: config,
                     language: language,
                     clipStartSeconds: snapshot.confirmedEndSeconds,
-                    onStatus: { _ in }
+                    onStatus: { _ in },
+                    onMetric: runtimeMetricHandler()
                 )
-                handleRealtimeSegments(segments, sampleCount: snapshot.sampleCount)
+                let events = realtimeEvents(segments, sampleCount: snapshot.sampleCount)
+                emitMetric(.realtimePassFinished(
+                    sampleCount: snapshot.sampleCount,
+                    segmentCount: segments.count,
+                    emittedEventCount: events.count,
+                    durationMs: Self.elapsedMilliseconds(since: startedAt)
+                ))
+                for event in events {
+                    emit(event)
+                }
             } catch is CancellationError {
                 return
             } catch {
                 if !isStopping {
+                    emitMetric(.realtimePassFailed(
+                        sampleCount: snapshot.sampleCount,
+                        durationMs: Self.elapsedMilliseconds(since: startedAt),
+                        message: error.localizedDescription
+                    ))
                     emit(.error(message: "WhisperKit realtime error: \(error.localizedDescription)"))
                 }
                 return
@@ -122,7 +228,7 @@ public actor WhisperKitProvider: SttProvider {
     }
 
     private func realtimeSnapshot() -> RealtimeSnapshot? {
-        guard sampleBuffer.count >= realtimeMinimumSamples else { return nil }
+        guard sampleBuffer.count >= realtimeOptions.minimumSamples else { return nil }
         guard sampleBuffer.count > lastRealtimeSampleCount else { return nil }
 
         return RealtimeSnapshot(
@@ -132,19 +238,44 @@ public actor WhisperKitProvider: SttProvider {
         )
     }
 
-    private func handleRealtimeSegments(
+    private func realtimeEvents(
         _ segments: [WhisperKitTranscriptSegment],
         sampleCount: Int
-    ) {
-        guard !isStopping else { return }
+    ) -> [TranscriptionEvent] {
+        guard !isStopping else { return [] }
         lastRealtimeSampleCount = sampleCount
-        for event in realtimeState.handleHypothesis(segments) {
-            emit(event)
+        return realtimeState.handleHypothesis(segments)
+    }
+
+    private func emit(_ event: TranscriptionEvent) {
+        switch event {
+        case .partial(let text, _):
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { break }
+            partialEventCount += 1
+            if !hasSeenFirstPartial, let sessionStartedAt {
+                hasSeenFirstPartial = true
+                emitMetric(.firstPartialLatency(durationMs: Self.elapsedMilliseconds(since: sessionStartedAt)))
+            }
+        case .committed:
+            committedEventCount += 1
+        case .error:
+            errorEventCount += 1
+        }
+        eventContinuation.yield(event)
+    }
+
+    private func runtimeMetricHandler() -> @Sendable (WhisperKitRuntimeMetric) -> Void {
+        { [onMetric] metric in
+            onMetric(.runtime(metric))
         }
     }
 
-    private nonisolated func emit(_ event: TranscriptionEvent) {
-        eventContinuation.yield(event)
+    private func emitMetric(_ metric: WhisperKitProviderMetric) {
+        onMetric(metric)
+    }
+
+    private static func elapsedMilliseconds(since start: Date) -> UInt64 {
+        UInt64(max(0, Date().timeIntervalSince(start) * 1000))
     }
 
     private struct RealtimeSnapshot: Sendable {
