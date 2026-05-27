@@ -109,10 +109,7 @@ public actor WhisperKitRuntimeStore {
         await acquire(key)
         defer { release(key) }
 
-        let options = DecodingOptions(
-            language: language,
-            detectLanguage: language == nil
-        )
+        let options = Self.decodingOptions(language: language)
         let results = try await box.pipeline.transcribe(
             audioArray: samples,
             decodeOptions: options
@@ -137,13 +134,7 @@ public actor WhisperKitRuntimeStore {
         await acquire(key)
         defer { release(key) }
 
-        var options = DecodingOptions(
-            language: language,
-            detectLanguage: language == nil
-        )
-        if let clipStartSeconds {
-            options.clipTimestamps = [clipStartSeconds]
-        }
+        let options = Self.decodingOptions(language: language, clipStartSeconds: clipStartSeconds)
 
         let results = try await box.pipeline.transcribe(
             audioArray: samples,
@@ -279,5 +270,17 @@ public actor WhisperKitRuntimeStore {
 
     private static func clamped(_ value: Double) -> Double {
         min(1.0, max(0.0, value))
+    }
+
+    private static func decodingOptions(
+        language: String?,
+        clipStartSeconds: Float? = nil
+    ) -> DecodingOptions {
+        DecodingOptions(
+            language: language,
+            detectLanguage: language == nil,
+            skipSpecialTokens: true,
+            clipTimestamps: clipStartSeconds.map { [$0] } ?? []
+        )
     }
 }

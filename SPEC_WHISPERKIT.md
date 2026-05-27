@@ -231,6 +231,9 @@ Float(sample) / Float(Int16.max)
 - Add an opt-in integration test for real tiny-model download, cache detection,
   targeted cache deletion, and sibling-folder preservation under a temporary
   home.
+- Add an opt-in integration test for real tiny-model provider transcription
+  using JFK audio, including realtime partial output, final committed text, and
+  special-token filtering.
 - Run package tests.
 
 ## Acceptance Criteria

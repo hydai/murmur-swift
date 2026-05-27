@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (135 tests, 22 suites)
+# Run all tests (136 tests, 23 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -73,7 +73,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-22 suites, 135 tests (Swift Testing framework):
+23 suites, 136 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
@@ -90,6 +90,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 - `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime segment state, and PCM normalization for native WhisperKit STT
 - `WhisperKitModelManagerTests` — Model catalog normalization, local folder validation, and cache size display
 - `WhisperKitCacheDeletionIntegrationTests` — Opt-in real tiny-model download/cache/delete verification under a temporary home
+- `WhisperKitTranscriptionIntegrationTests` — Opt-in real tiny-model provider transcription with realtime partial and final transcript checks
 - `ElevenLabsLanguagesTests` — ISO 639-1→639-3 mapping, unique IDs, language count
 - `ElevenLabsProtocolTests` — URL builder, PCM-to-base64, response parsing for Scribe v2
 - `TranscriptionAccumulatorTests` — trailing-partial fallback (Apple STT case)
