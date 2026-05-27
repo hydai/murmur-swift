@@ -10,6 +10,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 
 ### Speech-to-Text
 - **Apple Speech** (on-device, no API key) via `SpeechTranscriber`
+- **WhisperKit** (on-device, no API key) via Argmax Open-Source SDK, with realtime partials, shared native runtime reuse, proactive model loading, and cache management
 - **ElevenLabs Scribe v2** realtime WebSocket (98 languages, ISO 639-3)
 - **OpenAI Whisper** REST batching (4 s chunks)
 - **Groq Whisper Turbo** REST batching (4 s chunks)
@@ -36,6 +37,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 - Auto-opens Settings on first launch
 - **Redesigned Settings panel** with sidebar navigation, 8 sections (General, Speech-to-Text, LLM Processor, Output, Hotkey, Dictionary, Prompts, About) and reusable design tokens
 - Apple Speech model status + in-Settings download with progress bar
+- WhisperKit model picker + cache status/delete, local folder validation, and in-Settings preload with download progress
 
 ### History
 - Transcription history with search (300 ms debounce)
@@ -57,7 +59,7 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 
 ```
 murmur-swift/
-├── MurmurKit/                        # Swift Package (zero dependencies)
+├── MurmurKit/                        # Swift Package (Argmax WhisperKit dependency)
 │   ├── Package.swift
 │   ├── Sources/
 │   │   ├── Audio/                    # AudioCaptureService, AudioResampler, VadProcessor
@@ -66,8 +68,8 @@ murmur-swift/
 │   │   ├── LLM/                      # All 7 processors + PromptName/PromptSet/PromptStore + HttpLlmClient
 │   │   ├── Output/                   # Clipboard, Keyboard, Combined output sinks
 │   │   ├── Pipeline/                 # PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
-│   │   └── STT/                      # Apple/ElevenLabs/OpenAI/Groq/Custom providers, AppleSttModelManager
-│   └── Tests/                        # 108 tests across 17 suites (Swift Testing framework)
+│   │   └── STT/                      # Apple/WhisperKit/ElevenLabs/OpenAI/Groq/Custom providers, model managers
+│   └── Tests/                        # 134 tests across 21 suites (Swift Testing framework)
 ├── MurmurApp/                        # Xcode project
 │   ├── Shared/
 │   │   ├── MurmurApp.swift           # @main + AppDelegate (tray, hotkey, overlay, updates)
@@ -99,7 +101,7 @@ murmur-swift/
 # Build the Swift package
 cd MurmurKit && swift build
 
-# Run all tests (108 tests, 17 suites)
+# Run all tests (134 tests, 21 suites)
 cd MurmurKit && swift test
 
 # Build the full app via Xcode
@@ -128,7 +130,7 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - **No FFI bridges for LLM** — Apple Foundation Models use `LanguageModelSession` directly
 - **Native concurrency** — Swift actors, `AsyncStream`, and structured concurrency replace Tokio channels
 - **`@Observable` macro** — SwiftUI reactivity without `ObservableObject`/`@Published` boilerplate
-- **Single external dependency** — only Sparkle (auto-updater) on the app target; `MurmurKit` remains zero-dep
+- **Small dependency surface** — Sparkle handles app updates; Argmax WhisperKit powers native on-device Whisper STT
 
 ### Domain Types
 
@@ -138,6 +140,9 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - `AudioChunk` — 16 kHz mono Int16 PCM with monotonic timestamp
 - `TranscriptionAccumulator` — combines partials/commits with trailing-partial fallback
 - `AppleSttModelManager` — status + progress-tracked downloads via `AssetInventory`
+- `WhisperKitProvider` — native in-process WhisperKit transcription with realtime partial hypotheses and final stop-time commit
+- `WhisperKitRuntimeStore` — shared native WhisperKit pipeline cache with download/load/prewarm status
+- `WhisperKitModelManager` — supported model catalog normalization plus selected-model cache/local-folder inventory
 
 **LLM Processing**
 - `LlmProcessor` protocol — accepts a `ProcessingTask`, returns `ProcessingOutput`
@@ -161,9 +166,10 @@ See `DISTRIBUTION.md` for the release process: DMG packaging via `scripts/build-
 
 ## Known Limitations
 
-1. **API Keys Required** for cloud STT providers (ElevenLabs, OpenAI, Groq). Apple Speech runs on-device with no key.
+1. **API Keys Required** for cloud STT providers (ElevenLabs, OpenAI, Groq). Apple Speech and WhisperKit run on-device with no key.
 2. **Apple Speech requires macOS 26+** so the on-device model can be downloaded.
-3. **Sparkle** is the only third-party dependency; if you build without configuring `SUPublicEDKey` in `Info.plist` the in-app updater shows a one-time configuration alert.
+3. **WhisperKit realtime partial latency depends on model size and device speed**. Settings can preload the model, but the first load on a fresh system can still take longer.
+4. **Sparkle** requires `SUPublicEDKey` in `Info.plist`; without it the in-app updater shows a one-time configuration alert.
 
 ## License
 

@@ -23,6 +23,11 @@ struct ProviderFactoryTests {
             let apple = factory.createSttProvider(from: config)
             #expect(apple is AppleSttProvider)
 
+            // WhisperKit
+            config.sttProvider = .whisperKit
+            let whisperKit = factory.createSttProvider(from: config)
+            #expect(whisperKit is WhisperKitProvider)
+
             // ElevenLabs
             config.sttProvider = .elevenLabs
             let elevenLabs = factory.createSttProvider(from: config)

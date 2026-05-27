@@ -26,6 +26,8 @@ public enum ProviderDefaults {
     // MARK: - STT default models
 
     public static let elevenLabsModel  = "scribe_v2_realtime"
+    public static let whisperKitSttModel = "large-v3-v20240930_626MB"
+    public static let whisperKitModelRepo = "argmaxinc/whisperkit-coreml"
     public static let openAISttModel   = "whisper-1"
     public static let groqSttModel     = "whisper-large-v3-turbo"
     public static let customSttModel   = "whisper-1"

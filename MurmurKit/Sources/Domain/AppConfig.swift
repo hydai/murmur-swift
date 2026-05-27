@@ -3,6 +3,7 @@ import Foundation
 /// STT provider selection.
 public enum SttProviderType: String, Codable, Sendable, CaseIterable, Hashable {
     case appleStt
+    case whisperKit
     case elevenLabs
     case openAI
     case groq
@@ -30,6 +31,26 @@ public struct HttpSttConfig: Codable, Sendable {
         self.customBaseUrl = customBaseUrl
         self.customDisplayName = customDisplayName
         self.customModel = customModel
+    }
+}
+
+/// Configuration for native Argmax WhisperKit STT.
+public struct WhisperKitSttConfig: Codable, Sendable, Equatable {
+    public var model: String
+    public var modelRepo: String
+    public var modelFolder: String
+    public var prewarm: Bool
+
+    public init(
+        model: String = ProviderDefaults.whisperKitSttModel,
+        modelRepo: String = ProviderDefaults.whisperKitModelRepo,
+        modelFolder: String = "",
+        prewarm: Bool = false
+    ) {
+        self.model = model
+        self.modelRepo = modelRepo
+        self.modelFolder = modelFolder
+        self.prewarm = prewarm
     }
 }
 
@@ -76,6 +97,8 @@ public struct AppConfig: Codable, Sendable {
     public var httpLlmConfig: HttpLlmConfig
     /// Configuration for custom OpenAI-compatible STT endpoints.
     public var httpSttConfig: HttpSttConfig
+    /// Configuration for native WhisperKit STT.
+    public var whisperKitSttConfig: WhisperKitSttConfig
 
     public init(
         sttProvider: SttProviderType = .appleStt,
@@ -89,7 +112,8 @@ public struct AppConfig: Codable, Sendable {
         sttLanguage: String = "auto",
         llmModel: String = "",
         httpLlmConfig: HttpLlmConfig = HttpLlmConfig(),
-        httpSttConfig: HttpSttConfig = HttpSttConfig()
+        httpSttConfig: HttpSttConfig = HttpSttConfig(),
+        whisperKitSttConfig: WhisperKitSttConfig = WhisperKitSttConfig()
     ) {
         self.sttProvider = sttProvider
         self.apiKeys = apiKeys
@@ -103,6 +127,7 @@ public struct AppConfig: Codable, Sendable {
         self.llmModel = llmModel
         self.httpLlmConfig = httpLlmConfig
         self.httpSttConfig = httpSttConfig
+        self.whisperKitSttConfig = whisperKitSttConfig
     }
 
     // Custom decoder for backward compatibility — existing config files
@@ -121,6 +146,7 @@ public struct AppConfig: Codable, Sendable {
         llmModel = try container.decodeIfPresent(String.self, forKey: .llmModel) ?? ""
         httpLlmConfig = try container.decodeIfPresent(HttpLlmConfig.self, forKey: .httpLlmConfig) ?? HttpLlmConfig()
         httpSttConfig = try container.decodeIfPresent(HttpSttConfig.self, forKey: .httpSttConfig) ?? HttpSttConfig()
+        whisperKitSttConfig = try container.decodeIfPresent(WhisperKitSttConfig.self, forKey: .whisperKitSttConfig) ?? WhisperKitSttConfig()
     }
 
     /// Returns a copy with options that cannot run on the current platform

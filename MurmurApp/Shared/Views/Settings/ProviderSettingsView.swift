@@ -13,6 +13,7 @@ struct ProviderSettingsView: View {
                     SectionHeader("Provider")
                     Picker("Provider", selection: $viewModel.sttProvider) {
                         Text("Apple Speech (on-device)").tag(SttProviderType.appleStt)
+                        Text("WhisperKit (on-device)").tag(SttProviderType.whisperKit)
                         Text("ElevenLabs Scribe v2").tag(SttProviderType.elevenLabs)
                         Text("OpenAI Whisper").tag(SttProviderType.openAI)
                         Text("Groq Whisper Turbo").tag(SttProviderType.groq)
@@ -64,6 +65,50 @@ struct ProviderSettingsView: View {
                 .font(.caption).foregroundStyle(.secondary)
             Divider().padding(.vertical, Spacing.xs)
             AppleSttModelStatusView(viewModel: viewModel)
+        case .whisperKit:
+            Picker("Model", selection: $viewModel.whisperKitModel) {
+                ForEach(viewModel.whisperKitModelChoices, id: \.self) { model in
+                    Text(model == viewModel.whisperKitRecommendedModel ? "\(model) (recommended)" : model)
+                        .tag(model)
+                }
+            }
+            .pickerStyle(.menu)
+            HStack {
+                Button {
+                    viewModel.useRecommendedWhisperKitModel()
+                } label: {
+                    Label("Use Recommended", systemImage: "sparkles")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.whisperKitModel == viewModel.whisperKitRecommendedModel)
+
+                Button {
+                    Task { await viewModel.refreshWhisperKitModelInventory() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+            SettingsInput(
+                label: "Custom model",
+                placeholder: ProviderDefaults.whisperKitSttModel,
+                text: $viewModel.whisperKitModel
+            )
+            SettingsInput(
+                label: "Model repo",
+                placeholder: ProviderDefaults.whisperKitModelRepo,
+                text: $viewModel.whisperKitModelRepo
+            )
+            SettingsInput(
+                label: "Model folder (optional)",
+                placeholder: "",
+                text: $viewModel.whisperKitModelFolder
+            )
+            Toggle("Prewarm model", isOn: $viewModel.whisperKitPrewarm)
+            Text("Runs native WhisperKit in-process. First use may download and compile Core ML model files.")
+                .font(.caption).foregroundStyle(.secondary)
+            Divider().padding(.vertical, Spacing.xs)
+            WhisperKitModelStatusView(viewModel: viewModel)
         case .elevenLabs:
             SettingsInput(label: "ElevenLabs API key", placeholder: "xi-...", text: $viewModel.elevenLabsKey, isSecure: true)
         case .openAI:
@@ -86,12 +131,43 @@ private struct ProviderSaveOnChange: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .modifier(ProviderPrimarySaveOnChange(viewModel: viewModel))
+            .modifier(WhisperKitSaveOnChange(viewModel: viewModel))
+            .modifier(CustomSttSaveOnChange(viewModel: viewModel))
+    }
+}
+
+private struct ProviderPrimarySaveOnChange: ViewModifier {
+    @Bindable var viewModel: SettingsViewModel
+
+    func body(content: Content) -> some View {
+        content
             .onChange(of: viewModel.sttProvider)        { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.elevenLabsKey)      { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.openAIKey)          { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.groqKey)            { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.appleSttLocale)     { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.sttLanguage)        { _, _ in Task { await viewModel.saveConfig() } }
+    }
+}
+
+private struct WhisperKitSaveOnChange: ViewModifier {
+    @Bindable var viewModel: SettingsViewModel
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: viewModel.whisperKitModel)    { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.whisperKitModelRepo) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.whisperKitModelFolder) { _, _ in Task { await viewModel.saveConfig() } }
+            .onChange(of: viewModel.whisperKitPrewarm)  { _, _ in Task { await viewModel.saveConfig() } }
+    }
+}
+
+private struct CustomSttSaveOnChange: ViewModifier {
+    @Bindable var viewModel: SettingsViewModel
+
+    func body(content: Content) -> some View {
+        content
             .onChange(of: viewModel.customSttKey)       { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.customSttBaseUrl)   { _, _ in Task { await viewModel.saveConfig() } }
             .onChange(of: viewModel.customSttDisplayName) { _, _ in Task { await viewModel.saveConfig() } }

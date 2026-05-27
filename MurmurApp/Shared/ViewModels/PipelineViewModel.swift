@@ -38,6 +38,7 @@ final class PipelineViewModel {
     let configManager = ConfigManager()
     private let providerFactory = ProviderFactory()
     private var eventTask: Task<Void, Never>?
+    private var whisperKitPreloadTask: Task<Void, Never>?
 
     init() {
         startEventLoop()
@@ -111,6 +112,22 @@ final class PipelineViewModel {
         let output = CombinedOutput(mode: config.outputMode)
         await orchestrator.setOutputSink(output)
         await orchestrator.setDictionaryTerms(config.personalDictionary.allTermStrings)
+        scheduleWhisperKitPreloadIfNeeded(for: config)
+    }
+
+    private func scheduleWhisperKitPreloadIfNeeded(for config: AppConfig) {
+        whisperKitPreloadTask?.cancel()
+        guard config.sttProvider == .whisperKit, config.whisperKitSttConfig.prewarm else {
+            whisperKitPreloadTask = nil
+            return
+        }
+
+        let whisperConfig = config.whisperKitSttConfig
+        whisperKitPreloadTask = Task {
+            try? await Task.sleep(for: .milliseconds(750))
+            guard !Task.isCancelled else { return }
+            try? await WhisperKitRuntimeStore.shared.preload(config: whisperConfig)
+        }
     }
 
     // MARK: - Event loop

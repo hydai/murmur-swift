@@ -161,6 +161,10 @@ public actor PipelineOrchestrator {
         guard state == .recording || state == .transcribing else { return }
 
         await audioCapture.stop()
+        if state == .recording {
+            transition(to: .transcribing)
+        }
+
         // Wait for pipeline task to complete naturally (driven by stream closures),
         // but enforce an overall timeout just in case.
         let session = sessionTask
@@ -170,7 +174,7 @@ public actor PipelineOrchestrator {
                 return true
             }
             group.addTask {
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(120))
                 return false
             }
             let first = await group.next()!

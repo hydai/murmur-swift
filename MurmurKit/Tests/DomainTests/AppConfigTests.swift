@@ -19,6 +19,10 @@ struct AppConfigTests {
         #expect(config.httpSttConfig.customBaseUrl == "http://localhost:8080")
         #expect(config.httpSttConfig.customDisplayName == "Custom STT")
         #expect(config.httpSttConfig.customModel == "whisper-1")
+        #expect(config.whisperKitSttConfig.model == ProviderDefaults.whisperKitSttModel)
+        #expect(config.whisperKitSttConfig.modelRepo == ProviderDefaults.whisperKitModelRepo)
+        #expect(config.whisperKitSttConfig.modelFolder == "")
+        #expect(config.whisperKitSttConfig.prewarm == false)
         #expect(config.apiKeys.isEmpty)
         #expect(config.personalDictionary.terms.isEmpty)
         #expect(config.personalDictionary.entries.isEmpty)
@@ -81,6 +85,36 @@ struct AppConfigTests {
         #expect(decoded.httpSttConfig.customModel == "large-v3")
     }
 
+    @Test("WhisperKit STT config round-trips through JSON")
+    func whisperKitSttConfigRoundTrip() throws {
+        var config = AppConfig()
+        config.sttProvider = .whisperKit
+        config.sttLanguage = "ja"
+        config.whisperKitSttConfig = WhisperKitSttConfig(
+            model: "tiny",
+            modelRepo: "example/models",
+            modelFolder: "/tmp/whisperkit",
+            prewarm: true
+        )
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let data = try encoder.encode(config)
+        let json = String(data: data, encoding: .utf8) ?? ""
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let decoded = try decoder.decode(AppConfig.self, from: data)
+
+        #expect(json.contains("\"whisper_kit_stt_config\""))
+        #expect(decoded.sttProvider == .whisperKit)
+        #expect(decoded.sttLanguage == "ja")
+        #expect(decoded.whisperKitSttConfig.model == "tiny")
+        #expect(decoded.whisperKitSttConfig.modelRepo == "example/models")
+        #expect(decoded.whisperKitSttConfig.modelFolder == "/tmp/whisperkit")
+        #expect(decoded.whisperKitSttConfig.prewarm == true)
+    }
+
     @Test("New LlmProcessorType cases round-trip through JSON")
     func newLlmTypesRoundTrip() throws {
         let types: [LlmProcessorType] = [.openAILlm, .claude, .geminiApi, .customOpenAI]
@@ -127,6 +161,7 @@ struct AppConfigTests {
         #expect(config.httpLlmConfig.customBaseUrl == "http://localhost:11434/v1")
         #expect(config.httpSttConfig.customBaseUrl == "http://localhost:8080")
         #expect(config.httpSttConfig.customModel == "whisper-1")
+        #expect(config.whisperKitSttConfig == WhisperKitSttConfig())
         #expect(config.personalDictionary.entries.isEmpty)
     }
 }

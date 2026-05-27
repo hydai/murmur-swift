@@ -30,6 +30,8 @@ struct ProviderDefaultsTests {
     @Test("STT defaults match the Rust upstream choices")
     func sttDefaultsMatchUpstream() {
         #expect(ProviderDefaults.elevenLabsModel == "scribe_v2_realtime")
+        #expect(ProviderDefaults.whisperKitSttModel == "large-v3-v20240930_626MB")
+        #expect(ProviderDefaults.whisperKitModelRepo == "argmaxinc/whisperkit-coreml")
         #expect(ProviderDefaults.groqSttModel    == "whisper-large-v3-turbo")
         #expect(ProviderDefaults.openAISttModel  == "whisper-1")
         #expect(ProviderDefaults.customSttModel  == "whisper-1")

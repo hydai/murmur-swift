@@ -2,7 +2,7 @@
 
 ## Overview
 
-Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Targets macOS 26+ / iOS 26+. Zero external dependencies.
+Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Targets macOS 26+ / iOS 26+. MurmurKit depends on Argmax WhisperKit for native on-device Whisper STT.
 
 ## Build & Test
 
@@ -10,7 +10,7 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (108 tests, 17 suites)
+# Run all tests (134 tests, 21 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
@@ -22,20 +22,20 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Project Structure
 
-- `MurmurKit/` — Swift Package (zero deps), all domain logic and implementations
+- `MurmurKit/` — Swift Package, all domain logic and implementations
   - `Sources/Audio/` — AudioCaptureService, AudioResampler, VadProcessor
   - `Sources/Config/` — ConfigManager (JSON), HistoryStore, RelativeTimestampFormatter
   - `Sources/Domain/` — Protocols (SttProvider, LlmProcessor, OutputSink), AppConfig, HotkeySpec, ProviderDefaults, Notifications, AudioChunk, TranscriptionEvent, ProcessingTask, etc.
   - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptName, PromptSet, PromptStore, PromptManager, DefaultPromptTemplates
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
   - `Sources/Pipeline/` — PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
-  - `Sources/STT/` — AppleSttProvider, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
+  - `Sources/STT/` — AppleSttProvider, WhisperKitProvider, WhisperKitRuntimeStore, WhisperKitModelManager, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
   - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, OutputTests, PipelineTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
 - `MurmurApp/` — Xcode project (depends on MurmurKit + Sparkle)
   - `Shared/MurmurApp.swift` — @main + AppDelegate (tray, hotkey, overlay, updates, config observer)
   - `Shared/ViewModels/` — Pipeline, Settings, History view models (@Observable @MainActor)
   - `Shared/Views/` — TranscriptionView, HistoryView, WaveformIndicator
-  - `Shared/Views/Settings/` — NavigationSplitView shell + 8 section views (General/STT/LLM/Output/Hotkey/Dictionary/Prompts/About), DesignTokens, SettingsPrimitives, HotkeyCaptureField, AppleSttModelStatusView
+  - `Shared/Views/Settings/` — NavigationSplitView shell + 8 section views (General/STT/LLM/Output/Hotkey/Dictionary/Prompts/About), DesignTokens, SettingsPrimitives, HotkeyCaptureField, AppleSttModelStatusView, WhisperKitModelStatusView
   - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, ThemeApplier, UpdateManager (Sparkle wrapper), OverlayView
   - `Resources/` — Info.plist (SUFeedURL, SUEnableAutomaticChecks, SUPublicEDKey, LSUIElement, mic/accessibility/speech usage descriptions), entitlements
 - `prompts/` — LLM prompt templates (post_process, shorten, translate, change_tone, generate_reply)
@@ -73,7 +73,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-17 suites, 108 tests (Swift Testing framework):
+21 suites, 134 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
@@ -87,6 +87,8 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 - `PromptManagerTests` — Chinese Language Rule, override behaviour, placeholder substitution
 - `PromptStoreTests` — disk persistence round-trips, reset semantics
 - `CustomSttProviderTests` — Construction with default/custom/nil-key parameters
+- `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime segment state, and PCM normalization for native WhisperKit STT
+- `WhisperKitModelManagerTests` — Model catalog normalization, local folder validation, and cache size display
 - `ElevenLabsLanguagesTests` — ISO 639-1→639-3 mapping, unique IDs, language count
 - `ElevenLabsProtocolTests` — URL builder, PCM-to-base64, response parsing for Scribe v2
 - `TranscriptionAccumulatorTests` — trailing-partial fallback (Apple STT case)

@@ -13,6 +13,10 @@ final class SettingsViewModel {
     var hotkey: String = "Ctrl+`"
     var appleSttLocale: String = "auto"
     var sttLanguage: String = "auto"
+    var whisperKitModel: String = ProviderDefaults.whisperKitSttModel
+    var whisperKitModelRepo: String = ProviderDefaults.whisperKitModelRepo
+    var whisperKitModelFolder: String = ""
+    var whisperKitPrewarm: Bool = false
     var opacity: Float = 0.9
     var showWaveform: Bool = true
     var theme: String = "dark"
@@ -65,6 +69,18 @@ final class SettingsViewModel {
     var appleSttDownloadError: String?
     private let appleSttModelManager = AppleSttModelManager()
 
+    // WhisperKit model status
+    var whisperKitModelStatus: WhisperKitModelStatus = .idle
+    var whisperKitStorageStatus: WhisperKitModelStorageStatus = .notCached(path: "")
+    var whisperKitRecommendedModel: String = ProviderDefaults.whisperKitSttModel
+    var whisperKitSupportedModels: [String] = []
+    var whisperKitKnownModels: [String] = []
+    var whisperKitModelManagementError: String?
+    var isDeletingWhisperKitCachedModel: Bool = false
+    private let whisperKitRuntimeStore = WhisperKitRuntimeStore.shared
+    private let whisperKitModelManager = WhisperKitModelManager()
+    private var whisperKitPreloadTask: Task<Void, Never>?
+
     // MARK: - Internal
     private let configManager: ConfigManager
     /// Directory used for prompt overrides. Defaults to the same parent dir
@@ -89,6 +105,10 @@ final class SettingsViewModel {
         hotkey = config.hotkey
         appleSttLocale = config.appleSttLocale
         sttLanguage = config.sttLanguage
+        whisperKitModel = config.whisperKitSttConfig.model
+        whisperKitModelRepo = config.whisperKitSttConfig.modelRepo
+        whisperKitModelFolder = config.whisperKitSttConfig.modelFolder
+        whisperKitPrewarm = config.whisperKitSttConfig.prewarm
         opacity = config.uiPreferences.opacity
         showWaveform = config.uiPreferences.showWaveform
         theme = config.uiPreferences.theme
@@ -107,6 +127,8 @@ final class SettingsViewModel {
         customSttModel = config.httpSttConfig.customModel
         dictionaryTerms = config.personalDictionary.terms
         dictionaryEntries = config.personalDictionary.entries
+        await refreshWhisperKitModelInventory()
+        await refreshWhisperKitModelStatus()
     }
 
     // MARK: - Save
@@ -147,12 +169,20 @@ final class SettingsViewModel {
             sttLanguage: sttLanguage,
             llmModel: llmModel,
             httpLlmConfig: HttpLlmConfig(customBaseUrl: customBaseUrl, customDisplayName: customDisplayName),
-            httpSttConfig: HttpSttConfig(customBaseUrl: customSttBaseUrl, customDisplayName: customSttDisplayName, customModel: customSttModel)
+            httpSttConfig: HttpSttConfig(customBaseUrl: customSttBaseUrl, customDisplayName: customSttDisplayName, customModel: customSttModel),
+            whisperKitSttConfig: WhisperKitSttConfig(
+                model: whisperKitModel,
+                modelRepo: whisperKitModelRepo,
+                modelFolder: whisperKitModelFolder,
+                prewarm: whisperKitPrewarm
+            )
         )
 
         do {
             try await configManager.setConfig(newConfig)
             NotificationCenter.default.post(name: .murmurConfigDidChange, object: nil)
+            scheduleWhisperKitPreloadIfNeeded()
+            await refreshWhisperKitModelInventory()
         } catch {
             saveError = error.localizedDescription
         }
@@ -340,15 +370,133 @@ final class SettingsViewModel {
         appleSttLocale == "auto" ? Locale.current : Locale(identifier: appleSttLocale)
     }
 
+    // MARK: - WhisperKit model status
+
+    func refreshWhisperKitModelInventory() async {
+        let inventory = await whisperKitModelManager.inventory(for: currentWhisperKitConfig())
+        whisperKitRecommendedModel = inventory.recommendedModel
+        whisperKitSupportedModels = inventory.supportedModels
+        whisperKitKnownModels = inventory.knownModels
+        whisperKitStorageStatus = inventory.storageStatus
+    }
+
+    func refreshWhisperKitModelStatus() async {
+        whisperKitModelStatus = await whisperKitRuntimeStore.status(for: currentWhisperKitConfig())
+    }
+
+    func pollWhisperKitModelStatusWhileBusy() async {
+        while whisperKitModelStatus.isBusy {
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            await refreshWhisperKitModelStatus()
+        }
+    }
+
+    func preloadWhisperKitModel() async {
+        whisperKitPreloadTask?.cancel()
+        await preloadWhisperKitModel(config: currentWhisperKitConfig())
+    }
+
+    func useRecommendedWhisperKitModel() {
+        whisperKitModel = whisperKitRecommendedModel
+        Task { await saveConfig() }
+    }
+
+    func deleteWhisperKitCachedModel() async {
+        isDeletingWhisperKitCachedModel = true
+        whisperKitModelManagementError = nil
+        do {
+            try await whisperKitModelManager.deleteCachedModel(for: currentWhisperKitConfig())
+            await refreshWhisperKitModelInventory()
+            await refreshWhisperKitModelStatus()
+        } catch {
+            whisperKitModelManagementError = error.localizedDescription
+        }
+        isDeletingWhisperKitCachedModel = false
+    }
+
+    var whisperKitModelChoices: [String] {
+        orderedUnique(
+            [whisperKitModel, whisperKitRecommendedModel]
+                + whisperKitSupportedModels
+                + whisperKitKnownModels
+        )
+    }
+
+    var whisperKitCacheSizeText: String {
+        WhisperKitModelManager.displaySize(whisperKitStorageStatus.sizeBytes)
+    }
+
+    var canDeleteWhisperKitCachedModel: Bool {
+        if case .remoteCached = whisperKitStorageStatus {
+            return !whisperKitModelStatus.isBusy && !isDeletingWhisperKitCachedModel
+        }
+        return false
+    }
+
+    private func scheduleWhisperKitPreloadIfNeeded() {
+        whisperKitPreloadTask?.cancel()
+        guard sttProvider == .whisperKit, whisperKitPrewarm else {
+            whisperKitPreloadTask = nil
+            return
+        }
+
+        let config = currentWhisperKitConfig()
+        whisperKitPreloadTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(750))
+            guard !Task.isCancelled else { return }
+            await self?.preloadWhisperKitModel(config: config)
+        }
+    }
+
+    private func preloadWhisperKitModel(config: WhisperKitSttConfig) async {
+        whisperKitModelStatus = config.modelFolder.isEmpty ? .downloading(0) : .loading
+        do {
+            try await whisperKitRuntimeStore.preload(config: config) { [weak self] status in
+                Task { @MainActor in
+                    self?.whisperKitModelStatus = status
+                }
+            }
+            whisperKitModelStatus = .ready
+            await refreshWhisperKitModelInventory()
+        } catch {
+            whisperKitModelStatus = .error(error.localizedDescription)
+            await refreshWhisperKitModelInventory()
+        }
+    }
+
+    private func currentWhisperKitConfig() -> WhisperKitSttConfig {
+        WhisperKitSttConfig(
+            model: whisperKitModel,
+            modelRepo: whisperKitModelRepo,
+            modelFolder: whisperKitModelFolder,
+            prewarm: whisperKitPrewarm
+        )
+    }
+
+    private func orderedUnique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for value in values {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            if seen.insert(trimmed).inserted {
+                result.append(trimmed)
+            }
+        }
+        return result
+    }
+
     /// Which API key fields to show based on selected STT provider.
     var requiresApiKey: Bool {
-        sttProvider != .appleStt
+        sttProvider != .appleStt && sttProvider != .whisperKit
     }
 
     /// Display name for the current STT provider's API key field.
     var apiKeyLabel: String {
         switch sttProvider {
         case .appleStt: return ""
+        case .whisperKit: return ""
         case .elevenLabs: return "ElevenLabs API Key"
         case .openAI: return "OpenAI API Key"
         case .groq: return "Groq API Key"
