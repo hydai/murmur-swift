@@ -22,10 +22,11 @@ xattr -cr /Applications/Murmur.app
 
 Releases that ship with notarization (see "Release secrets" below) skip this step.
 
-After installation, grant the two macOS permissions when prompted:
+After installation, grant the macOS permissions when prompted:
 
 1. **Microphone** — for audio capture (Settings → Privacy & Security → Microphone)
-2. **Accessibility** — only required if you use "Keyboard" output mode (Settings → Privacy & Security → Accessibility)
+2. **Speech Recognition** — required when using Apple Speech (Settings → Privacy & Security → Speech Recognition)
+3. **Accessibility** — only required if you use "Keyboard" output mode (Settings → Privacy & Security → Accessibility)
 
 ## Local builds
 

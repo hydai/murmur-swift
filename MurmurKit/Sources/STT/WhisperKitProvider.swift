@@ -37,8 +37,8 @@ public enum WhisperKitProviderMetric: Sendable, Equatable {
 
 /// Native Argmax WhisperKit STT.
 ///
-/// The open-source SDK path is treated as batch transcription for the first
-/// integration: audio is buffered during recording and transcribed when the
+/// Audio is buffered during recording so the provider can run periodic native
+/// WhisperKit passes for realtime partials, then commit a final pass when the
 /// session stops.
 public actor WhisperKitProvider: SttProvider {
     private let config: WhisperKitSttConfig

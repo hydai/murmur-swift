@@ -4,13 +4,13 @@
 
 # Murmur
 
-Privacy-first BYOK (Bring Your Own Key) voice typing application built with native Swift and SwiftUI.
+Privacy-first BYOK (Bring Your Own Key) voice typing application for macOS, iOS, and iPadOS, built with native Swift and SwiftUI.
 
 ## Features
 
 ### Speech-to-Text
 - **Apple Speech** (on-device, no API key) via `SpeechTranscriber`
-- **WhisperKit** (on-device, no API key) via Argmax Open-Source SDK, with realtime partials, shared native runtime reuse, proactive model loading, OSLog diagnostics, and cache management
+- **WhisperKit** (on-device, no API key) via Argmax Open-Source SDK, with tunable realtime partials, shared native runtime reuse, proactive model loading, diagnostics, and cache management
 - **ElevenLabs Scribe v2** realtime WebSocket (98 languages, ISO 639-3)
 - **OpenAI Whisper** REST batching (4 s chunks)
 - **Groq Whisper Turbo** REST batching (4 s chunks)
@@ -35,9 +35,11 @@ Privacy-first BYOK (Bring Your Own Key) voice typing application built with nati
 - System tray with Start/Stop, Settings, History, Check for Updates, and Quit
 - Configurable global hotkey with live keystroke capture (default `Ctrl+\``)
 - Auto-opens Settings on first launch
+- iOS/iPadOS foreground recording shell with Record, History, and Settings navigation, mobile copy/share actions, and iPad split layout
+- iOS keyboard extension that inserts the latest processed transcript from the shared app group; recording remains inside the main app
 - **Redesigned Settings panel** with sidebar navigation, 8 sections (General, Speech-to-Text, LLM Processor, Output, Hotkey, Dictionary, Prompts, About) and reusable design tokens
 - Apple Speech model status + in-Settings download with progress bar
-- WhisperKit model picker + cache status/delete/open, local folder picker/validation, and in-Settings preload with download progress
+- WhisperKit model picker + realtime-partial controls, cache status/delete/open, local folder picker/validation, in-Settings preload with download progress, and diagnostics view with reset
 
 ### History
 - Transcription history with search (300 ms debounce)
@@ -69,7 +71,7 @@ murmur-swift/
 │   │   ├── Output/                   # Clipboard, Keyboard, Combined output sinks
 │   │   ├── Pipeline/                 # PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
 │   │   └── STT/                      # Apple/WhisperKit/ElevenLabs/OpenAI/Groq/Custom providers, model managers
-│   └── Tests/                        # 138 tests across 23 suites (Swift Testing framework)
+│   └── Tests/                        # 148 tests across 24 suites (Swift Testing framework)
 ├── MurmurApp/                        # Xcode project
 │   ├── Shared/
 │   │   ├── MurmurApp.swift           # @main + AppDelegate (tray, hotkey, overlay, updates)
@@ -78,7 +80,10 @@ murmur-swift/
 │   │       └── Settings/             # NavigationSplitView sidebar + 8 section views
 │   ├── macOS/                        # OverlayWindow, SystemTray, Hotkey, Permissions, Sound,
 │   │                                 #   ThemeApplier, UpdateManager (Sparkle)
+│   ├── iOS/                          # MobileRootView, permissions, latest-transcript app-group sync
 │   └── Resources/                    # Info.plist, entitlements
+├── MurmurKeyboardExtension/          # iOS custom keyboard for inserting latest processed transcript
+├── MurmurUITests/                    # Xcode UI tests for WhisperKit settings diagnostics/model management
 ├── Murmur.xcodeproj                  # Xcode project (Sparkle package, MurmurKit local)
 ├── prompts/                          # Five default markdown templates (post_process, shorten, …)
 ├── scripts/build-dmg.sh              # DMG packaging wrapper for create-dmg
@@ -92,6 +97,7 @@ murmur-swift/
 
 - Xcode 26+
 - macOS 26+
+- iOS 26 SDK/simulator for the mobile app and keyboard extension targets
 - (optional) `lineguard` for pre-commit formatting checks
 - (optional) `create-dmg` for local DMG packaging
 
@@ -101,11 +107,17 @@ murmur-swift/
 # Build the Swift package
 cd MurmurKit && swift build
 
-# Run all tests (138 tests, 23 suites)
+# Run all Swift package tests (148 tests, 24 suites)
 cd MurmurKit && swift test
 
 # Build the full app via Xcode
 xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -configuration Release build
+
+# Build the iOS app + keyboard extension without signing
+xcodebuild -project Murmur.xcodeproj -scheme "Murmur iOS" -destination generic/platform=iOS build CODE_SIGNING_ALLOWED=NO
+
+# Run package + app UI tests via Xcode
+xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=macOS' test
 ```
 
 ### Pre-commit hook
@@ -140,9 +152,10 @@ Murmur (Swift) is a native rebuild of the [Tauri/Rust version](https://github.co
 - `AudioChunk` — 16 kHz mono Int16 PCM with monotonic timestamp
 - `TranscriptionAccumulator` — combines partials/commits with trailing-partial fallback
 - `AppleSttModelManager` — status + progress-tracked downloads via `AssetInventory`
-- `WhisperKitProvider` — native in-process WhisperKit transcription with realtime partial hypotheses and final stop-time commit
-- `WhisperKitRuntimeStore` — shared native WhisperKit pipeline cache with download/load/prewarm status and metrics
+- `WhisperKitProvider` — native in-process WhisperKit transcription with tunable realtime partial hypotheses and final stop-time commit
+- `WhisperKitRuntimeStore` — shared native WhisperKit pipeline cache with download/load/prewarm status, queued transcription prioritization, cancellation cleanup, and metrics
 - `WhisperKitModelManager` — supported model catalog normalization plus selected-model cache/local-folder inventory
+- `WhisperKitDiagnosticsSnapshot` — reducer for provider/runtime metrics shown in the Settings diagnostics panel
 
 **LLM Processing**
 - `LlmProcessor` protocol — accepts a `ProcessingTask`, returns `ProcessingOutput`
@@ -169,7 +182,8 @@ See `DISTRIBUTION.md` for the release process: DMG packaging via `scripts/build-
 1. **API Keys Required** for cloud STT providers (ElevenLabs, OpenAI, Groq). Apple Speech and WhisperKit run on-device with no key.
 2. **Apple Speech requires macOS 26+** so the on-device model can be downloaded.
 3. **WhisperKit realtime partial latency depends on model size and device speed**. Settings can preload the model, but the first load on a fresh system can still take longer.
-4. **Sparkle** requires `SUPublicEDKey` in `Info.plist`; without it the in-app updater shows a one-time configuration alert.
+4. **iOS/iPadOS recording is foreground-only**. The keyboard extension cannot record audio; it can only insert the latest processed transcript after the main app writes it to the shared app group, and users must enable Full Access.
+5. **Sparkle** requires `SUPublicEDKey` in `Info.plist`; without it the in-app updater shows a one-time configuration alert.
 
 ## License
 

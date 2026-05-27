@@ -246,7 +246,7 @@ Manual verification:
   - `Murmur iOS` Xcode target and shared scheme
 - Latest validation:
   - `swift build --package-path MurmurKit` succeeds.
-  - `swift test --package-path MurmurKit` passes with 120 tests.
+  - `swift test --package-path MurmurKit` passes with 148 tests across 24 suites.
   - `Murmur iOS` builds for iPhone 17 Simulator and iPad Pro 13-inch (M5) Simulator on iOS 26.4.1, including the embedded keyboard extension.
   - `Murmur iOS` builds for generic iOS devices with `CODE_SIGNING_ALLOWED=NO`, including the embedded keyboard extension.
   - macOS `Murmur` scheme builds successfully.
@@ -280,3 +280,7 @@ Manual verification:
   - The card can open the app's iOS Settings page for keyboard enablement and Full Access.
   - Latest-transcript writes now fail explicitly when the shared app group store is unavailable instead of falling back to private app defaults.
   - Remaining manual verification: open Output settings on device/simulator after recording and confirm the card changes from Not synced yet to Synced.
+- WhisperKit follow-up work is implemented and covered by automated tests:
+  - Provider diagnostics now flow through `WhisperKitDiagnosticsSnapshot` into the Settings diagnostics panel, including model source, audio, first partial, realtime/final/native pass timings, cache hits, event counts, recent events, and reset.
+  - The WhisperKit settings UI exposes model catalog refresh, recommended model selection, local model folder validation, cache status/open/delete controls, preload progress, and realtime partial tuning.
+  - `MurmurUITests` cover the seeded diagnostics reset flow and model-management local-folder/cache states.

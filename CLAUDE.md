@@ -2,7 +2,7 @@
 
 ## Overview
 
-Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Targets macOS 26+ / iOS 26+. MurmurKit depends on Argmax WhisperKit for native on-device Whisper STT.
+Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Targets macOS 26+ / iOS and iPadOS 26+. MurmurKit depends on Argmax WhisperKit for native on-device Whisper STT.
 
 ## Build & Test
 
@@ -10,13 +10,16 @@ Native Swift/SwiftUI rebuild of Murmur. Privacy-first BYOK voice typing app. Tar
 # Build Swift package
 cd MurmurKit && swift build
 
-# Run all tests (138 tests, 23 suites)
+# Run all Swift package tests (148 tests, 24 suites)
 cd MurmurKit && swift test
 
 # Build full app via xcodebuild
 xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -configuration Release build
 
-# Run tests via xcodebuild
+# Build iOS app + keyboard extension without signing
+xcodebuild -project Murmur.xcodeproj -scheme "Murmur iOS" -destination generic/platform=iOS build CODE_SIGNING_ALLOWED=NO
+
+# Run package + app UI tests via xcodebuild
 xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=macOS' test
 ```
 
@@ -29,15 +32,18 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
   - `Sources/LLM/` — AppleLlmProcessor, OpenAILlmProcessor, ClaudeLlmProcessor, GeminiApiProcessor, CustomOpenAIProcessor, GeminiProcessor, CopilotProcessor, HttpLlmClient, CliExecutor, PromptName, PromptSet, PromptStore, PromptManager, DefaultPromptTemplates
   - `Sources/Output/` — ClipboardOutput, KeyboardOutput, CombinedOutput
   - `Sources/Pipeline/` — PipelineOrchestrator, TranscriptionAccumulator, VoiceCommandDetector
-  - `Sources/STT/` — AppleSttProvider, WhisperKitProvider, WhisperKitRuntimeStore, WhisperKitMetricLogger, WhisperKitModelManager, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
+  - `Sources/STT/` — AppleSttProvider, WhisperKitProvider, WhisperKitRuntimeStore, WhisperKitMetricLogger, WhisperKitDiagnosticsSnapshot, WhisperKitModelManager, AppleSttModelManager, ElevenLabsProvider, OpenAIProvider, GroqProvider, CustomSttProvider, AudioChunker, ElevenLabsLanguages
   - `Tests/` — AudioTests, ConfigTests, DomainTests, LLMTests, OutputTests, PipelineTests, STTTests (Swift Testing framework: `@Suite`, `@Test`)
 - `MurmurApp/` — Xcode project (depends on MurmurKit + Sparkle)
   - `Shared/MurmurApp.swift` — @main + AppDelegate (tray, hotkey, overlay, updates, config observer)
   - `Shared/ViewModels/` — Pipeline, Settings, History view models (@Observable @MainActor)
   - `Shared/Views/` — TranscriptionView, HistoryView, WaveformIndicator
-  - `Shared/Views/Settings/` — NavigationSplitView shell + 8 section views (General/STT/LLM/Output/Hotkey/Dictionary/Prompts/About), DesignTokens, SettingsPrimitives, HotkeyCaptureField, AppleSttModelStatusView, WhisperKitModelStatusView
+  - `Shared/Views/Settings/` — NavigationSplitView shell + 8 section views (General/STT/LLM/Output/Hotkey/Dictionary/Prompts/About), DesignTokens, SettingsPrimitives, HotkeyCaptureField, AppleSttModelStatusView, WhisperKitModelStatusView, WhisperKitDiagnosticsView
   - `macOS/` — OverlayWindow, SystemTrayManager, GlobalHotkeyManager, PermissionsManager, SoundManager, ThemeApplier, UpdateManager (Sparkle wrapper), OverlayView
+  - `iOS/` — MobileRootView, MobilePermissions, MobileLatestTranscriptStore for app-group latest transcript sync
   - `Resources/` — Info.plist (SUFeedURL, SUEnableAutomaticChecks, SUPublicEDKey, LSUIElement, mic/accessibility/speech usage descriptions), entitlements
+- `MurmurKeyboardExtension/` — iOS custom keyboard extension that inserts the latest processed transcript from the shared app group
+- `MurmurUITests/` — Xcode UI tests for WhisperKit settings diagnostics and model management
 - `prompts/` — LLM prompt templates (post_process, shorten, translate, change_tone, generate_reply)
 - `scripts/build-dmg.sh` — wraps create-dmg for the release workflow
 - `.githooks/pre-commit` — lineguard + swift build + swift test (activate via `git config core.hooksPath .githooks`)
@@ -73,7 +79,7 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 
 ## Test Structure
 
-23 suites, 138 tests (Swift Testing framework):
+24 suites, 148 tests (Swift Testing framework):
 - `AudioChunkerTests` — WAV encoding, RIFF header validation
 - `ConfigManagerTests` — Default config, save/load round-trip, update persistence
 - `HistoryStoreTests` — CRUD, search, max entries cap, persistence
@@ -87,11 +93,16 @@ xcodebuild -workspace Murmur.xcworkspace -scheme Murmur -destination 'platform=m
 - `PromptManagerTests` — Chinese Language Rule, override behaviour, placeholder substitution
 - `PromptStoreTests` — disk persistence round-trips, reset semantics
 - `CustomSttProviderTests` — Construction with default/custom/nil-key parameters
-- `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime options, realtime segment state, and PCM normalization for native WhisperKit STT
+- `WhisperKitProviderTests` — Construction, runtime key/status behaviour, realtime options, realtime segment state, PCM normalization, slot prioritization, and cancellation cleanup for native WhisperKit STT
+- `WhisperKitDiagnosticsSnapshotTests` — Provider/runtime metric reducer, event retention, and reset/error behaviour for Settings diagnostics
 - `WhisperKitModelManagerTests` — Model catalog normalization, local folder validation, and cache size display
 - `WhisperKitCacheDeletionIntegrationTests` — Opt-in real tiny-model download/cache/delete verification under a temporary home
-- `WhisperKitTranscriptionIntegrationTests` — Opt-in real tiny-model provider transcription with realtime partial and final transcript checks
+- `WhisperKitTranscriptionIntegrationTests` — Opt-in real tiny/default-model provider transcription matrix with realtime partial, final transcript, metrics, and local-folder checks
 - `ElevenLabsLanguagesTests` — ISO 639-1→639-3 mapping, unique IDs, language count
 - `ElevenLabsProtocolTests` — URL builder, PCM-to-base64, response parsing for Scribe v2
 - `TranscriptionAccumulatorTests` — trailing-partial fallback (Apple STT case)
-- `CombinedOutput routing` — clipboard / keyboard / both wiring (serialized to share pasteboard)
+- `CombinedOutput routing` — clipboard / keyboard / both wiring (serialized to share pasteboard) plus mobile output fallback helpers
+
+Xcode UI tests:
+- `WhisperKitDiagnosticsUITests` — Settings diagnostics panel seeded metrics and reset flow
+- `WhisperKitModelManagementUITests` — Settings model management local-folder/cache states and controls
