@@ -1,4 +1,5 @@
 import Foundation
+import MurmurKit
 import SwiftUI
 
 struct WhisperKitDiagnosticsView: View {

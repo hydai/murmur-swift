@@ -272,6 +272,7 @@ Float(sample) / Float(Int16.max)
   build.
 - Verify the app diagnostics recorder receives provider metrics through
   `ProviderFactory`.
+- Add unit tests for the diagnostics snapshot reducer.
 - Run package tests.
 
 ## Acceptance Criteria
