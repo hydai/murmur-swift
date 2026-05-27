@@ -12,13 +12,9 @@ struct LlmSettingsView: View {
                 SettingsCard {
                     SectionHeader("Processor")
                     Picker("Processor", selection: $viewModel.llmProcessor) {
-                        Text("Apple Foundation Models (on-device)").tag(LlmProcessorType.appleLlm)
-                        Text("Gemini CLI").tag(LlmProcessorType.gemini)
-                        Text("Copilot CLI").tag(LlmProcessorType.copilot)
-                        Text("OpenAI API").tag(LlmProcessorType.openAILlm)
-                        Text("Claude API").tag(LlmProcessorType.claude)
-                        Text("Gemini API").tag(LlmProcessorType.geminiApi)
-                        Text("Custom OpenAI-compatible").tag(LlmProcessorType.customOpenAI)
+                        ForEach(PlatformCapabilities.availableLlmProcessors, id: \.self) { processor in
+                            Text(label(for: processor)).tag(processor)
+                        }
                     }
                     .pickerStyle(.menu)
 
@@ -70,6 +66,18 @@ struct LlmSettingsView: View {
             SettingsInput(label: "Display name", placeholder: "Ollama", text: $viewModel.customDisplayName)
             Text("Any OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, Azure OpenAI…).")
                 .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func label(for processor: LlmProcessorType) -> String {
+        switch processor {
+        case .appleLlm: return "Apple Foundation Models (on-device)"
+        case .gemini: return "Gemini CLI"
+        case .copilot: return "Copilot CLI"
+        case .openAILlm: return "OpenAI API"
+        case .claude: return "Claude API"
+        case .geminiApi: return "Gemini API"
+        case .customOpenAI: return "Custom OpenAI-compatible"
         }
     }
 }

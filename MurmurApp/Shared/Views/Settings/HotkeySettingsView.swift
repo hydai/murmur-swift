@@ -9,16 +9,19 @@ struct HotkeySettingsView: View {
             PageHeader("Hotkey", subtitle: "Global shortcut that toggles recording.")
 
             SettingsCard {
-                #if os(macOS)
-                HotkeyCaptureField(hotkeyString: $viewModel.hotkey)
-                #else
-                TextField("Hotkey", text: $viewModel.hotkey)
-                    .textFieldStyle(.roundedBorder)
-                #endif
+                if PlatformCapabilities.supportsGlobalHotkey {
+                    #if os(macOS)
+                    HotkeyCaptureField(hotkeyString: $viewModel.hotkey)
+                    #endif
 
-                Text("Default: Ctrl+`. Click the field above and press your desired key combination. At least one modifier (Ctrl, Cmd, Alt, or Shift) is required.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("Default: Ctrl+`. Click the field above and press your desired key combination. At least one modifier (Ctrl, Cmd, Alt, or Shift) is required.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Global hotkeys are not available on iOS or iPadOS. Recording is started from inside Murmur.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()

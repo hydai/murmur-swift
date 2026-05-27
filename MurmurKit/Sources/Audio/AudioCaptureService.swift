@@ -20,8 +20,12 @@ public actor AudioCaptureService {
     public init() {}
 
     /// Start capturing audio from the default input device.
-    public func start() throws {
+    public func start() async throws {
         guard !isRunning else { return }
+
+        #if os(iOS)
+        try await prepareAudioSessionForRecording()
+        #endif
 
         // Create fresh streams for this session
         var chunkCont: AsyncStream<AudioChunk>.Continuation!
@@ -66,6 +70,9 @@ public actor AudioCaptureService {
 
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
         isRunning = false
 
         chunkContinuation?.finish()
@@ -77,4 +84,27 @@ public actor AudioCaptureService {
     private nonisolated func currentTimeMs() -> UInt64 {
         UInt64(Date().timeIntervalSince1970 * 1000)
     }
+
+    #if os(iOS)
+    private func prepareAudioSessionForRecording() async throws {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            break
+        case .notDetermined:
+            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            guard granted else {
+                throw MurmurError.permission("Microphone access was denied")
+            }
+        case .denied, .restricted:
+            throw MurmurError.permission("Microphone access is not available")
+        @unknown default:
+            throw MurmurError.permission("Unknown microphone permission state")
+        }
+
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .measurement, options: [])
+        try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
+        try session.setActive(true)
+    }
+    #endif
 }

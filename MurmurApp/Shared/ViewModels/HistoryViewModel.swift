@@ -1,5 +1,10 @@
 import SwiftUI
 import MurmurKit
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Drives the History UI with debounced search and lazy pagination.
 @MainActor
@@ -24,6 +29,7 @@ final class HistoryViewModel {
 
     private let store: HistoryStore
     private var debounceTask: Task<Void, Never>?
+    private var hasLoaded = false
 
     init(store: HistoryStore = HistoryStore()) {
         self.store = store
@@ -69,6 +75,7 @@ final class HistoryViewModel {
             try await store.load()
             entries = await store.getAll()
             visibleCount = pageSize
+            hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -76,6 +83,7 @@ final class HistoryViewModel {
 
     func addEntry(_ entry: HistoryEntry) async {
         do {
+            try await ensureLoaded()
             try await store.add(entry)
             entries = await store.getAll()
             // Prepend doesn't shrink visibility — keep the user's window.
@@ -86,6 +94,7 @@ final class HistoryViewModel {
 
     func deleteEntry(id: UUID) async {
         do {
+            try await ensureLoaded()
             try await store.delete(id: id)
             entries = await store.getAll()
         } catch {
@@ -95,6 +104,7 @@ final class HistoryViewModel {
 
     func clearAll() async {
         do {
+            try await ensureLoaded()
             try await store.clear()
             entries = []
             visibleCount = pageSize
@@ -110,5 +120,12 @@ final class HistoryViewModel {
         #else
         UIPasteboard.general.string = text
         #endif
+    }
+
+    private func ensureLoaded() async throws {
+        guard !hasLoaded else { return }
+        try await store.load()
+        entries = await store.getAll()
+        hasLoaded = true
     }
 }

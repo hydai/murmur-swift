@@ -16,17 +16,31 @@ struct SettingsPanel: View {
                 .background(Color.settingsBackground)
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 720, idealWidth: 760, minHeight: 560, idealHeight: 600)
+        .modifier(SettingsPanelSizing())
         .task { await viewModel.loadConfig() }
     }
 
     private var sidebar: some View {
+        #if os(macOS)
         List(SettingsSection.allCases, id: \.self, selection: $selection) { section in
             Label(section.title, systemImage: section.systemImage)
                 .tag(section)
         }
         .listStyle(.sidebar)
         .navigationTitle("Murmur")
+        #else
+        List(SettingsSection.allCases, id: \.self) { section in
+            Button {
+                selection = section
+            } label: {
+                Label(section.title, systemImage: section.systemImage)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .foregroundStyle(selection == section ? Color.accentColor : Color.primary)
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("Murmur")
+        #endif
     }
 
     @ViewBuilder
@@ -41,6 +55,16 @@ struct SettingsPanel: View {
         case .prompts:    PromptsSettingsView(viewModel: viewModel)
         case .about:      AboutSettingsView()
         }
+    }
+}
+
+private struct SettingsPanelSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.frame(minWidth: 720, idealWidth: 760, minHeight: 560, idealHeight: 600)
+        #else
+        content
+        #endif
     }
 }
 

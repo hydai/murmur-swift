@@ -34,6 +34,8 @@ public actor AppleSttProvider: SttProvider {
     }
 
     public func startSession() async throws {
+        try await ensureSpeechAuthorization()
+
         // Validate locale before creating transcriber for actionable error messages
         let supported = await SpeechTranscriber.supportedLocales
         let effectiveLocale: Locale
@@ -190,6 +192,32 @@ public actor AppleSttProvider: SttProvider {
 
     private func emit(_ event: TranscriptionEvent) {
         eventContinuation.yield(event)
+    }
+
+    private func ensureSpeechAuthorization() async throws {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized:
+            return
+        case .notDetermined:
+            let status = await requestSpeechAuthorization()
+            guard status == .authorized else {
+                throw MurmurError.permission("Speech recognition access was denied")
+            }
+        case .denied:
+            throw MurmurError.permission("Speech recognition access was denied")
+        case .restricted:
+            throw MurmurError.permission("Speech recognition access is restricted")
+        @unknown default:
+            throw MurmurError.permission("Unknown speech recognition permission state")
+        }
+    }
+
+    private func requestSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status)
+            }
+        }
     }
 
     /// Build a minimal locale from the system locale.

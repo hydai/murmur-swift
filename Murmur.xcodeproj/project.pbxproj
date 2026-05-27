@@ -9,10 +9,42 @@
 /* Begin PBXBuildFile section */
 		A1000001 /* MurmurKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002 /* MurmurKit */; };
 		B1000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B1000002 /* Sparkle */; };
+		C1000001 /* MurmurKit in Frameworks */ = {isa = PBXBuildFile; productRef = C1000002 /* MurmurKit */; };
+		D1000001 /* MurmurKeyboardExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D2000001 /* MurmurKeyboardExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D1000002 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2200001 /* KeyboardViewController.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D1100001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A8000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D5000001;
+			remoteInfo = MurmurKeyboardExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D6000003 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D1000001 /* MurmurKeyboardExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A2000001 /* Murmur.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Murmur.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2000001 /* MurmurMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MurmurMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2000001 /* MurmurKeyboardExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MurmurKeyboardExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2200001 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
+		D2200002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D2200003 /* MurmurKeyboardExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MurmurKeyboardExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -24,6 +56,26 @@
 		A2100002 /* MurmurKit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MurmurKit;
+			sourceTree = "<group>";
+		};
+		A2100003 /* MurmurApp Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MurmurApp/Shared;
+			sourceTree = "<group>";
+		};
+		A2100004 /* MurmurApp macOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MurmurApp/macOS;
+			sourceTree = "<group>";
+		};
+		A2100005 /* MurmurApp Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MurmurApp/Resources;
+			sourceTree = "<group>";
+		};
+		C2100001 /* MurmurApp iOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MurmurApp/iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +90,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C3000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C1000001 /* MurmurKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D3000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -46,6 +113,7 @@
 			children = (
 				A2100001 /* MurmurApp */,
 				A2100002 /* MurmurKit */,
+				D2100001 /* MurmurKeyboardExtension */,
 				A4000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,8 +122,20 @@
 			isa = PBXGroup;
 			children = (
 				A2000001 /* Murmur.app */,
+				C2000001 /* MurmurMobile.app */,
+				D2000001 /* MurmurKeyboardExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D2100001 /* MurmurKeyboardExtension */ = {
+			isa = PBXGroup;
+			children = (
+				D2200001 /* KeyboardViewController.swift */,
+				D2200002 /* Info.plist */,
+				D2200003 /* MurmurKeyboardExtension.entitlements */,
+			);
+			path = MurmurKeyboardExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -74,7 +154,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A2100001 /* MurmurApp */,
+				A2100003 /* MurmurApp Shared */,
+				A2100004 /* MurmurApp macOS */,
+				A2100005 /* MurmurApp Resources */,
 			);
 			name = Murmur;
 			packageProductDependencies = (
@@ -84,6 +166,49 @@
 			productName = Murmur;
 			productReference = A2000001 /* Murmur.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C5000001 /* Murmur iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C7000003 /* Build configuration list for PBXNativeTarget "Murmur iOS" */;
+			buildPhases = (
+				C6000001 /* Sources */,
+				C3000001 /* Frameworks */,
+				C6000002 /* Resources */,
+				D6000003 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D1200001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A2100003 /* MurmurApp Shared */,
+				C2100001 /* MurmurApp iOS */,
+			);
+			name = "Murmur iOS";
+			packageProductDependencies = (
+				C1000002 /* MurmurKit */,
+			);
+			productName = MurmurMobile;
+			productReference = C2000001 /* MurmurMobile.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D5000001 /* MurmurKeyboardExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D7000003 /* Build configuration list for PBXNativeTarget "MurmurKeyboardExtension" */;
+			buildPhases = (
+				D6000001 /* Sources */,
+				D3000001 /* Frameworks */,
+				D6000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MurmurKeyboardExtension;
+			productName = MurmurKeyboardExtension;
+			productReference = D2000001 /* MurmurKeyboardExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -114,12 +239,28 @@
 			projectRoot = "";
 			targets = (
 				A5000001 /* Murmur */,
+				C5000001 /* Murmur iOS */,
+				D5000001 /* MurmurKeyboardExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A6000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6000002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -136,7 +277,30 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C6000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1000002 /* KeyboardViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D1200001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D5000001 /* MurmurKeyboardExtension */;
+			targetProxy = D1100001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A7000004 /* Debug */ = {
@@ -311,6 +475,124 @@
 			};
 			name = Release;
 		};
+		C7000006 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MurmurApp/iOS/Murmur-iOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Murmur;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Murmur needs microphone access for voice transcription.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Murmur uses on-device Speech Recognition for transcription when the Apple Speech provider is selected.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile;
+				PRODUCT_NAME = MurmurMobile;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C7000007 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MurmurApp/iOS/Murmur-iOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Murmur;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Murmur needs microphone access for voice transcription.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Murmur uses on-device Speech Recognition for transcription when the Apple Speech provider is selected.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile;
+				PRODUCT_NAME = MurmurMobile;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D7000006 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = MurmurKeyboardExtension/MurmurKeyboardExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MurmurKeyboardExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile.keyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D7000007 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = MurmurKeyboardExtension/MurmurKeyboardExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MurmurKeyboardExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydai.Murmur.mobile.keyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -328,6 +610,24 @@
 			buildConfigurations = (
 				A7000006 /* Debug */,
 				A7000007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C7000003 /* Build configuration list for PBXNativeTarget "Murmur iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C7000006 /* Debug */,
+				C7000007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D7000003 /* Build configuration list for PBXNativeTarget "MurmurKeyboardExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D7000006 /* Debug */,
+				D7000007 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -361,6 +661,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B1000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		C1000002 /* MurmurKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MurmurKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 

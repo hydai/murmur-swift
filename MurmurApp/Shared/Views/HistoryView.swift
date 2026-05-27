@@ -90,8 +90,18 @@ struct HistoryView: View {
                 .padding(.vertical, 6)
             }
         }
-        .frame(minWidth: 400, minHeight: 300)
+        .modifier(HistoryViewSizing())
         .task { await viewModel.load() }
+    }
+}
+
+private struct HistoryViewSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.frame(minWidth: 400, minHeight: 300)
+        #else
+        content
+        #endif
     }
 }
 
@@ -129,6 +139,9 @@ private struct HistoryRow: View {
                 .lineLimit(3)
 
             HStack(spacing: 12) {
+                MobileHistoryShareButton(text: entry.processedText)
+                    .font(.caption)
+
                 Button {
                     viewModel.copyToClipboard(entry.processedText)
                 } label: {
@@ -148,5 +161,53 @@ private struct HistoryRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
+        .modifier(HistoryRowSwipeActions(entry: entry, viewModel: viewModel))
+    }
+}
+
+private struct HistoryRowSwipeActions: ViewModifier {
+    let entry: HistoryEntry
+    let viewModel: HistoryViewModel
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) {
+                    Task { await viewModel.deleteEntry(id: entry.id) }
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+
+                Button {
+                    viewModel.copyToClipboard(entry.processedText)
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                .tint(.blue)
+
+                ShareLink(item: entry.processedText) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .tint(.green)
+            }
+        #else
+        content
+        #endif
+    }
+}
+
+private struct MobileHistoryShareButton: View {
+    let text: String
+
+    var body: some View {
+        #if os(iOS)
+        ShareLink(item: text) {
+            Label("Share", systemImage: "square.and.arrow.up")
+        }
+        .buttonStyle(.plain)
+        #else
+        EmptyView()
+        #endif
     }
 }

@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// LLM processor using the GitHub Copilot CLI via subprocess. macOS only.
@@ -42,3 +43,4 @@ public actor CopilotProcessor: LlmProcessor {
         await executor.isAvailable(program: "copilot")
     }
 }
+#endif

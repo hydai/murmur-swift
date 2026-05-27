@@ -7,11 +7,18 @@ struct MurmurApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
+    @SceneBuilder
     var body: some Scene {
+        #if os(macOS)
         WindowGroup {
             TranscriptionView()
         }
         .defaultSize(width: 500, height: 400)
+        #else
+        WindowGroup {
+            MobileRootView()
+        }
+        #endif
     }
 }
 

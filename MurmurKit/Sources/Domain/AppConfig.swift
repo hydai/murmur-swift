@@ -1,7 +1,7 @@
 import Foundation
 
 /// STT provider selection.
-public enum SttProviderType: String, Codable, Sendable, CaseIterable {
+public enum SttProviderType: String, Codable, Sendable, CaseIterable, Hashable {
     case appleStt
     case elevenLabs
     case openAI
@@ -10,7 +10,7 @@ public enum SttProviderType: String, Codable, Sendable, CaseIterable {
 }
 
 /// LLM processor selection.
-public enum LlmProcessorType: String, Codable, Sendable, CaseIterable {
+public enum LlmProcessorType: String, Codable, Sendable, CaseIterable, Hashable {
     case appleLlm
     case gemini
     case copilot
@@ -121,5 +121,16 @@ public struct AppConfig: Codable, Sendable {
         llmModel = try container.decodeIfPresent(String.self, forKey: .llmModel) ?? ""
         httpLlmConfig = try container.decodeIfPresent(HttpLlmConfig.self, forKey: .httpLlmConfig) ?? HttpLlmConfig()
         httpSttConfig = try container.decodeIfPresent(HttpSttConfig.self, forKey: .httpSttConfig) ?? HttpSttConfig()
+    }
+
+    /// Returns a copy with options that cannot run on the current platform
+    /// mapped to the closest supported behavior.
+    public func normalizedForCurrentPlatform() -> AppConfig {
+        var copy = self
+        if !PlatformCapabilities.availableLlmProcessors.contains(copy.llmProcessor) {
+            copy.llmProcessor = .appleLlm
+        }
+        copy.outputMode = copy.outputMode.normalized()
+        return copy
     }
 }

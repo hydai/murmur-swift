@@ -82,7 +82,7 @@ final class SettingsViewModel {
     // MARK: - Load
 
     func loadConfig() async {
-        let config = await configManager.getConfig()
+        let config = await configManager.getConfig().normalizedForCurrentPlatform()
         sttProvider = config.sttProvider
         llmProcessor = config.llmProcessor
         outputMode = config.outputMode
@@ -125,12 +125,22 @@ final class SettingsViewModel {
         if !customOpenAIKey.isEmpty { keys["custom_openai"] = customOpenAIKey }
         if !customSttKey.isEmpty { keys["custom_stt"] = customSttKey }
 
+        let effectiveLlmProcessor = PlatformCapabilities.availableLlmProcessors.contains(llmProcessor)
+            ? llmProcessor
+            : .appleLlm
+        let effectiveOutputMode = PlatformCapabilities.availableOutputModes.contains(outputMode)
+            ? outputMode
+            : .clipboard
+
+        llmProcessor = effectiveLlmProcessor
+        outputMode = effectiveOutputMode
+
         let newConfig = AppConfig(
             sttProvider: sttProvider,
             apiKeys: keys,
             hotkey: hotkey,
-            llmProcessor: llmProcessor,
-            outputMode: outputMode,
+            llmProcessor: effectiveLlmProcessor,
+            outputMode: effectiveOutputMode,
             uiPreferences: UiPreferences(opacity: opacity, showWaveform: showWaveform, theme: theme),
             appleSttLocale: appleSttLocale,
             personalDictionary: PersonalDictionary(terms: dictionaryTerms, entries: dictionaryEntries),
@@ -184,9 +194,17 @@ final class SettingsViewModel {
         case .appleLlm:
             return AppleLlmProcessor()
         case .gemini:
+            #if os(macOS)
             return GeminiProcessor(model: resolved(.gemini))
+            #else
+            return UnsupportedLlmProcessor(displayName: "Gemini CLI")
+            #endif
         case .copilot:
+            #if os(macOS)
             return CopilotProcessor(model: resolved(.copilot))
+            #else
+            return UnsupportedLlmProcessor(displayName: "Copilot CLI")
+            #endif
         case .openAILlm:
             return OpenAILlmProcessor(apiKey: openAIKey, model: resolved(.openAILlm))
         case .claude:

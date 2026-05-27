@@ -1,8 +1,19 @@
 import SwiftUI
+import MurmurKit
 
 /// Main transcription view with record button and text display.
 struct TranscriptionView: View {
-    @State private var viewModel = PipelineViewModel()
+    @State private var viewModel: PipelineViewModel
+    @State private var didCopyFinalResult = false
+    private let recordingGate: (() async -> Bool)?
+
+    init(
+        viewModel: PipelineViewModel = PipelineViewModel(),
+        recordingGate: (() async -> Bool)? = nil
+    ) {
+        self._viewModel = State(initialValue: viewModel)
+        self.recordingGate = recordingGate
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -28,9 +39,23 @@ struct TranscriptionView: View {
 
                     if !viewModel.finalResult.isEmpty {
                         Divider()
-                        Text("Processed:")
+                        HStack {
+                            Text("Processed:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            MobileShareButton(text: viewModel.finalResult)
+                                .font(.caption)
+                            Button {
+                                copyFinalResult()
+                            } label: {
+                                Label(
+                                    didCopyFinalResult ? "Copied" : "Copy",
+                                    systemImage: didCopyFinalResult ? "checkmark" : "doc.on.doc"
+                                )
+                            }
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                        }
                         Text(viewModel.finalResult)
                             .font(.body)
                             .textSelection(.enabled)
@@ -63,10 +88,34 @@ struct TranscriptionView: View {
 
             // Error display
             if let error = viewModel.errorMessage {
-                Text(error)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            viewModel.resetError()
+                        } label: {
+                            Label("Dismiss", systemImage: "xmark.circle")
+                        }
+
+                        if !viewModel.isRecording {
+                            Button {
+                                retryRecording()
+                            } label: {
+                                Label("Retry", systemImage: "arrow.clockwise")
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderless)
                     .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
             // Detected command badge
@@ -81,9 +130,7 @@ struct TranscriptionView: View {
 
             // Record button
             Button {
-                Task {
-                    await viewModel.toggleRecording()
-                }
+                toggleRecording()
             } label: {
                 HStack {
                     Image(systemName: viewModel.isRecording ? "stop.fill" : "mic.fill")
@@ -96,7 +143,7 @@ struct TranscriptionView: View {
             .tint(viewModel.isRecording ? .red : .accentColor)
         }
         .padding()
-        .frame(minWidth: 400, minHeight: 300)
+        .modifier(TranscriptionViewSizing())
     }
 
     private var statusColor: Color {
@@ -119,6 +166,62 @@ struct TranscriptionView: View {
         case .done: "Done"
         case .error: "Error"
         }
+    }
+
+    private func copyFinalResult() {
+        let text = viewModel.finalResult
+        guard !text.isEmpty else { return }
+        Task {
+            try? await ClipboardOutput().outputText(text)
+            didCopyFinalResult = true
+            try? await Task.sleep(for: .seconds(1))
+            didCopyFinalResult = false
+        }
+    }
+
+    private func toggleRecording() {
+        Task {
+            if !viewModel.isRecording, let recordingGate {
+                guard await recordingGate() else { return }
+            }
+            await viewModel.toggleRecording()
+        }
+    }
+
+    private func retryRecording() {
+        Task {
+            viewModel.resetError()
+            if let recordingGate {
+                guard await recordingGate() else { return }
+            }
+            await viewModel.startRecording()
+        }
+    }
+}
+
+private struct MobileShareButton: View {
+    let text: String
+
+    var body: some View {
+        #if os(iOS)
+        if !text.isEmpty {
+            ShareLink(item: text) {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+}
+
+private struct TranscriptionViewSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.frame(minWidth: 400, minHeight: 300)
+        #else
+        content
+        #endif
     }
 }
 

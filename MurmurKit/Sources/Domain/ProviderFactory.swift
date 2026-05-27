@@ -58,9 +58,17 @@ public struct ProviderFactory: Sendable {
         case .appleLlm:
             return AppleLlmProcessor(promptManager: promptManager)
         case .gemini:
+            #if os(macOS)
             return GeminiProcessor(model: resolved(.gemini), promptManager: promptManager)
+            #else
+            return UnsupportedLlmProcessor(displayName: "Gemini CLI")
+            #endif
         case .copilot:
+            #if os(macOS)
             return CopilotProcessor(model: resolved(.copilot), promptManager: promptManager)
+            #else
+            return UnsupportedLlmProcessor(displayName: "Copilot CLI")
+            #endif
         case .openAILlm:
             let key = config.apiKeys[ProviderDefaults.ApiKey.openAILlm]
                 ?? config.apiKeys[ProviderDefaults.ApiKey.openAI]

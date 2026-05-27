@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// Output from a CLI subprocess.
@@ -66,3 +67,4 @@ public struct CliExecutor: Sendable {
         }
     }
 }
+#endif

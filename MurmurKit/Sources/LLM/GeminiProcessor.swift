@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// LLM processor using the Gemini CLI tool via subprocess. macOS only.
@@ -62,3 +63,4 @@ public actor GeminiProcessor: LlmProcessor {
         return trimmed
     }
 }
+#endif

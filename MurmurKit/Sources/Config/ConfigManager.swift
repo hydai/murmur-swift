@@ -29,7 +29,7 @@ public actor ConfigManager {
         let data = try Data(contentsOf: fileURL)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        config = try decoder.decode(AppConfig.self, from: data)
+        config = try decoder.decode(AppConfig.self, from: data).normalizedForCurrentPlatform()
     }
 
     /// Save current config to disk.
@@ -52,12 +52,13 @@ public actor ConfigManager {
     /// Update config and save.
     public func update(_ transform: (inout AppConfig) -> Void) throws {
         transform(&config)
+        config = config.normalizedForCurrentPlatform()
         try save()
     }
 
     /// Replace config entirely and save.
     public func setConfig(_ newConfig: AppConfig) throws {
-        config = newConfig
+        config = newConfig.normalizedForCurrentPlatform()
         try save()
     }
 }

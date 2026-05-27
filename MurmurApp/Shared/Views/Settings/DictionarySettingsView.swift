@@ -61,7 +61,7 @@ struct DictionarySettingsView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .listStyle(.bordered)
+                    .modifier(SettingsListStyle())
                     .frame(minHeight: 160)
                 }
             }
@@ -88,7 +88,7 @@ struct DictionarySettingsView: View {
                         }
                         .onDelete { offsets in viewModel.removeTerm(at: offsets) }
                     }
-                    .listStyle(.bordered)
+                    .modifier(SettingsListStyle())
                     .frame(maxHeight: 120)
                 }
             }
@@ -97,5 +97,15 @@ struct DictionarySettingsView: View {
         }
         .padding(Spacing.xl)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct SettingsListStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.listStyle(.bordered)
+        #else
+        content.listStyle(.plain)
+        #endif
     }
 }
